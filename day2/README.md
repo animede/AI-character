@@ -94,13 +94,17 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 リポジトリのルートディレクトリで仮想環境を作成してから起動します。
 
+依存パッケージのインストールは、`requirements.txt` を使う方法と、個別に `pip install` する方法のどちらでも構いません。
+
 Linux / macOS:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install fastapi uvicorn openai
+python -m pip install -r day2/requirements.txt
+# または
+# python -m pip install fastapi uvicorn openai
 cd day2
 python webapp_main.py
 ```
@@ -111,7 +115,9 @@ Windows PowerShell:
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install fastapi uvicorn openai
+python -m pip install -r day2/requirements.txt
+# または
+# python -m pip install fastapi uvicorn openai
 cd day2
 python webapp_main.py
 ```
@@ -122,7 +128,9 @@ Windows コマンドプロンプト:
 py -m venv .venv
 .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-python -m pip install fastapi uvicorn openai
+python -m pip install -r day2/requirements.txt
+REM または
+REM python -m pip install fastapi uvicorn openai
 cd day2
 python webapp_main.py
 ```
@@ -152,6 +160,7 @@ http://127.0.0.1:8001
 - `llama.cpp` のサーバが起動していること
 - 既定では `http://127.0.0.1:8080/v1` を利用します
 - Python 3.10 以上を推奨します
+- 依存パッケージ一覧は [day2/requirements.txt](day2/requirements.txt) に記載しています
 - 必要な Python パッケージは `fastapi`、`uvicorn`、`openai` です
 
 ## 補足
