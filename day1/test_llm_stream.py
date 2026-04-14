@@ -4,7 +4,7 @@ from openai import OpenAI
 import sys
 
 # LLMサーバー設定 起動しているLLMサーバーのURLとAPIキーを指定、ローカルで動かすならキーとモデルは適当で良いです。
-LLM_BASE_URL = "http://192.168.100.12:8080/v1"
+LLM_BASE_URL = "http://0.0.0.0:8080/v1"
 LLM_API_KEY = "YOUR_OPENAI_API_KEY"
 LLM_MODEL = "unsloth/gemma-4-E2B-it-GGUF"
 

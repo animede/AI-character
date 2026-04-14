@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Character Chat</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">DAY2 WEB APP</p>
+        <h1>AIキャラ会話</h1>
+      </div>
+      <div class="status-group">
+        <span id="server-status" class="status-badge status-loading">接続確認中</span>
+        <span id="model-name" class="model-name">model: -</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="character-panel">
+        <div class="character-visual" id="character-visual">
+          <span id="character-avatar-label">も</span>
+        </div>
+        <div class="character-body">
+          <label class="field-label" for="character-select">キャラクター</label>
+          <select id="character-select"></select>
+          <h2 id="character-name">-</h2>
+          <p id="character-description" class="character-description"></p>
+          <dl class="character-meta">
+            <div>
+              <dt>音声名</dt>
+              <dd id="character-voice">-</dd>
+            </div>
+            <div>
+              <dt>タグ</dt>
+              <dd id="character-tags">-</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="panel-actions">
+          <button id="new-conversation-button" class="secondary-button" type="button">新しい会話</button>
+          <button id="clear-conversation-button" class="secondary-button" type="button">履歴クリア</button>
+        </div>
+      </aside>
+
+      <section class="chat-panel">
+        <div id="chat-messages" class="chat-messages"></div>
+        <div id="error-banner" class="error-banner hidden"></div>
+        <form id="composer" class="composer">
+          <textarea id="message-input" rows="3" placeholder="ももに話しかけてください"></textarea>
+          <button id="send-button" type="submit">送信</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
