@@ -1,0 +1,49 @@
+# day1_5 LINE風チャットアプリ
+
+この記事の構成をベースにした、FastAPI + WebSocket + 単一 HTML のシンプルな LINE 風チャットアプリです。
+
+## ファイル構成
+
+- `openai_gui_m4A.py`
+  - FastAPI バックエンドです
+  - `/` で HTML を返し、`/ws` で LLM ストリームを中継します
+- `static/index4A.html`
+  - HTML / JavaScript / CSS を 1 ファイルにまとめたフロントエンドです
+- `requirements.txt`
+  - 必要な Python パッケージ一覧です
+  - WebSocket 接続用の `websockets` も含みます
+
+## 起動方法
+
+リポジトリルートで仮想環境を有効化してから実行します。
+
+```bash
+python -m pip install -r day1_5/requirements.txt
+cd day1_5
+python openai_gui_m4A.py
+```
+
+ブラウザで次を開きます。
+
+```text
+http://127.0.0.1:8004
+```
+
+## 環境変数
+
+- `LLM_BASE_URL`
+  - 既定値: `http://127.0.0.1:8080/v1`
+- `LLM_API_KEY`
+  - 既定値: `YOUR_OPENAI_API_KEY`
+- `LLM_MODEL`
+  - 既定値: `unsloth/gemma-4-E4B-it-GGUF:Q4_K_M`
+- `APP_HOST`
+  - 既定値: `127.0.0.1`
+- `APP_PORT`
+  - 既定値: `8004`
+
+## 記事からの調整点
+
+- ロール入力は、そのまま OpenAI API の `system` メッセージとして扱うようにしています
+- WebSocket 接続先は固定 URL ではなく、ブラウザの現在ホストから自動生成します
+- 接続先は現在の llama.cpp サーバ設定に合わせて `127.0.0.1:8080/v1` を既定にしています

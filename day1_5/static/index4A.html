@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAY1_5 AIキャラ会話</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">DAY1_5 WEB APP</p>
+        <h1>AIキャラ会話</h1>
+      </div>
+      <div class="status-group">
+        <span id="connectionStatus" class="status-badge status-loading">接続確認中</span>
+        <span class="model-name">FastAPI + WebSocket</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="character-panel">
+        <div class="character-visual" id="characterVisual">
+          <img src="/static/assets/characters/momo_music.jpg" alt="もも" id="characterImage">
+          <span id="characterAvatarLabel" class="hidden">も</span>
+        </div>
+
+        <div class="character-body">
+          <label class="field-label" for="nameInput">キャラクタの名前</label>
+          <input type="text" id="nameInput" placeholder="もも" value="もも">
+
+          <h2 id="characterName">もも</h2>
+          <p id="characterDescription" class="character-description">AIキャラとしての設定を反映しながら、会話記憶付きでストリーミング対話するアプリです。</p>
+
+          <dl class="character-meta">
+            <div>
+              <dt>会話ターン記憶数</dt>
+              <dd>
+                <input type="number" id="numberInput" min="0" max="20" value="5" placeholder="0-20">
+              </dd>
+            </div>
+          </dl>
+
+          <label class="field-label" for="roleText">キャラクタロール</label>
+          <textarea id="roleText" placeholder="キャラクター設定や口調を入力">__DEFAULT_ROLE__</textarea>
+        </div>
+
+        <div class="panel-actions">
+          <button id="clearButton" class="secondary-button" type="button">履歴クリア</button>
+        </div>
+      </aside>
+
+      <section class="chat-panel">
+        <div id="responses" class="chat-messages"></div>
+        <div class="composer">
+          <textarea id="inputText" rows="3" placeholder="メッセージを書く。Shift + Enter で改行 / Enter で送信"></textarea>
+          <button id="sendButton" type="button">送信</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+    const messagesContainer = document.getElementById("responses");
+    const statusElement = document.getElementById("connectionStatus");
+    const historyCountInput = document.getElementById("numberInput");
+    const nameInput = document.getElementById("nameInput");
+    const roleText = document.getElementById("roleText");
+    const characterName = document.getElementById("characterName");
+    const characterAvatarLabel = document.getElementById("characterAvatarLabel");
+
+    let isFirstResponse = true;
+    let assistantName = "もも";
+
+    function resizeTextarea(textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
+    document.querySelectorAll("textarea").forEach((textarea) => {
+      if (textarea.id === "roleText") {
+        return;
+      }
+
+      textarea.addEventListener("input", function() {
+        resizeTextarea(this);
+      }, false);
+      resizeTextarea(textarea);
+    });
+
+    nameInput.addEventListener("input", syncCharacterPanel);
+
+    document.getElementById("inputText").addEventListener("keydown", function(event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    document.getElementById("sendButton").addEventListener("click", sendMessage);
+    document.getElementById("clearButton").addEventListener("click", clearConversation);
+
+    ws.onopen = function() {
+      statusElement.textContent = "接続OK";
+      statusElement.classList.remove("status-loading", "status-error");
+      statusElement.classList.add("status-ok");
+    };
+
+    ws.onclose = function() {
+      statusElement.textContent = "切断";
+      statusElement.classList.remove("status-loading", "status-ok");
+      statusElement.classList.add("status-error");
+    };
+
+    ws.onerror = function() {
+      statusElement.textContent = "接続エラー";
+      statusElement.classList.remove("status-loading", "status-ok");
+      statusElement.classList.add("status-error");
+    };
+
+    ws.onmessage = function(event) {
+      if (isFirstResponse) {
+        const row = document.createElement("div");
+        row.className = "message-row assistant";
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble assistant-bubble";
+        bubble.innerHTML = `<strong class="name-label">${escapeHtml(assistantName)}:</strong> `;
+
+        row.appendChild(bubble);
+        messagesContainer.appendChild(row);
+        isFirstResponse = false;
+      }
+
+      const lastRow = messagesContainer.lastElementChild;
+      const bubble = lastRow ? lastRow.querySelector(".message-bubble") : null;
+
+      if (bubble) {
+        const span = document.createElement("span");
+        span.innerHTML = escapeHtml(event.data);
+        bubble.appendChild(span);
+      }
+
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    function sendMessage() {
+      const inputElement = document.getElementById("inputText");
+      const message = inputElement.value.trim();
+      const roleMessage = roleText.value.trim();
+      const name = nameInput.value.trim() || "もも";
+
+      if (!message) {
+        alert("メッセージを入力してください。");
+        return;
+      }
+
+      assistantName = name;
+      syncCharacterPanel();
+
+      const row = document.createElement("div");
+      row.className = "message-row user";
+
+      const bubble = document.createElement("div");
+      bubble.className = "message-bubble user-bubble";
+      bubble.innerHTML = `<strong>You:</strong> ${escapeHtml(message)}`;
+
+      row.appendChild(bubble);
+      messagesContainer.appendChild(row);
+
+      ws.send(JSON.stringify({
+        action: "chat",
+        message,
+        role: roleMessage,
+        max_history: Number(historyCountInput.value || 5),
+      }));
+
+      inputElement.value = "";
+      resizeTextarea(inputElement);
+      isFirstResponse = true;
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function clearConversation() {
+      messagesContainer.innerHTML = "";
+      isFirstResponse = true;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: "clear" }));
+      }
+    }
+
+    function syncCharacterPanel() {
+      const name = nameInput.value.trim() || "もも";
+      characterName.textContent = name;
+      characterAvatarLabel.textContent = name.slice(0, 1);
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;")
+        .replaceAll("\n", "<br>");
+    }
+
+    syncCharacterPanel();
+  </script>
+
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --panel: rgba(255, 250, 244, 0.88);
+      --panel-strong: rgba(255, 247, 238, 0.98);
+      --line: rgba(53, 44, 37, 0.12);
+      --text: #2f241f;
+      --muted: #6f6257;
+      --accent: #f26f63;
+      --accent-deep: #d7584d;
+      --accent-cool: #1f7a8c;
+      --user-bubble: #1f7a8c;
+      --assistant-bubble: #fff7ef;
+      --error: #a42b2b;
+      --shadow: 0 18px 50px rgba(59, 39, 23, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(242, 111, 99, 0.18), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(31, 122, 140, 0.16), transparent 30%),
+        linear-gradient(145deg, #f7f2ea, #ece4d8);
+      font-family: "Hiragino Sans", "Yu Gothic", "BIZ UDPGothic", sans-serif;
+    }
+
+    .app-shell {
+      width: min(1200px, calc(100vw - 32px));
+      height: calc(100vh - 32px);
+      margin: 16px auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .topbar h1 {
+      margin: 4px 0 0;
+      font-size: clamp(2rem, 3vw, 3rem);
+      line-height: 1;
+    }
+
+    .eyebrow {
+      margin: 0;
+      letter-spacing: 0.18em;
+      font-size: 0.72rem;
+      color: var(--accent-cool);
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-badge,
+    .model-name {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    .status-ok {
+      color: #185a2a;
+    }
+
+    .status-error {
+      color: var(--error);
+    }
+
+    .status-loading {
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 30vw) 1fr;
+      gap: 18px;
+      min-height: 0;
+      flex: 1;
+    }
+
+    .character-panel,
+    .chat-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      min-height: 0;
+    }
+
+    .character-panel {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .character-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .character-visual {
+      min-height: 220px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(160deg, rgba(242, 111, 99, 0.22), rgba(31, 122, 140, 0.18)),
+        #fff6ee;
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      overflow: hidden;
+    }
+
+    .character-visual span {
+      font-size: 4rem;
+      font-weight: 800;
+    }
+
+    .character-visual img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .field-label {
+      display: block;
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="number"],
+    button {
+      font: inherit;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      padding: 14px 16px;
+      color: var(--text);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+      line-height: 1.6;
+    }
+
+    #roleText {
+      min-height: clamp(220px, 34vh, 420px);
+      max-height: 46vh;
+      height: clamp(220px, 34vh, 420px);
+      margin-top: 2px;
+      padding: 16px 18px;
+      overflow-y: auto;
+      resize: none;
+    }
+
+    .character-body h2 {
+      margin: 16px 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .character-description {
+      margin: 0;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .character-meta {
+      margin: 18px 0 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .character-meta div {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid var(--line);
+    }
+
+    .character-meta dt {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .character-meta dd {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .character-meta input[type="number"] {
+      padding: 10px 12px;
+    }
+
+    .panel-actions {
+      margin-top: auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .secondary-button,
+    #sendButton {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    .secondary-button:hover,
+    #sendButton:hover {
+      transform: translateY(-1px);
+    }
+
+    .secondary-button {
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message-row {
+      display: flex;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+    }
+
+    .message-row.assistant {
+      justify-content: flex-start;
+    }
+
+    .message-bubble {
+      max-width: min(720px, 84%);
+      padding: 14px 16px;
+      border-radius: 22px;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      box-shadow: 0 8px 24px rgba(59, 39, 23, 0.08);
+      word-break: break-word;
+    }
+
+    .user-bubble {
+      background: var(--user-bubble);
+      color: #fff;
+      border-bottom-right-radius: 8px;
+    }
+
+    .assistant-bubble {
+      background: var(--assistant-bubble);
+      border: 1px solid rgba(53, 44, 37, 0.08);
+      border-bottom-left-radius: 8px;
+    }
+
+    .name-label {
+      color: var(--accent-deep);
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr 132px;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    #inputText {
+      resize: vertical;
+      min-height: 72px;
+      max-height: 180px;
+    }
+
+    #sendButton {
+      background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+      color: #fff;
+      font-weight: 700;
+    }
+
+    @media (max-width: 920px) {
+      body {
+        overflow: auto;
+      }
+
+      .app-shell {
+        height: auto;
+        min-height: calc(100vh - 16px);
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      #roleText {
+        min-height: clamp(220px, 28vh, 320px);
+        max-height: 40vh;
+      }
+
+      .chat-panel {
+        min-height: 60vh;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app-shell {
+        width: min(100vw - 16px, 100%);
+        margin: 8px auto;
+        min-height: calc(100vh - 16px);
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .composer {
+        grid-template-columns: 1fr;
+      }
+
+      .character-panel {
+        padding: 16px;
+      }
+
+      #roleText {
+        min-height: 240px;
+        max-height: none;
+      }
+
+      .message-bubble {
+        max-width: 92%;
+      }
+    }
+  </style>
+</body>
+</html>
