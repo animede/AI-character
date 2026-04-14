@@ -90,26 +90,55 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 フロントエンド側では、`delta` を描画キューに積み、文字単位に近い形で表示します。
 
-## 起動方法
+## セットアップと起動方法
 
-`day2` ディレクトリで次を実行します。
+リポジトリのルートディレクトリで仮想環境を作成してから起動します。
 
 Linux / macOS:
 
 ```bash
-.venv/bin/python webapp_main.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install fastapi uvicorn openai
+cd day2
+python webapp_main.py
 ```
 
 Windows PowerShell:
 
 ```powershell
-.venv\Scripts\python.exe webapp_main.py
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install fastapi uvicorn openai
+cd day2
+python webapp_main.py
 ```
 
 Windows コマンドプロンプト:
 
 ```bat
-.venv\Scripts\python.exe webapp_main.py
+py -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install fastapi uvicorn openai
+cd day2
+python webapp_main.py
+```
+
+仮想環境を有効化せずに直接実行したい場合は、`day2` ディレクトリで次を使います。
+
+Linux / macOS:
+
+```bash
+../.venv/bin/python webapp_main.py
+```
+
+Windows PowerShell / コマンドプロンプト:
+
+```bat
+..\.venv\Scripts\python.exe webapp_main.py
 ```
 
 起動後、ブラウザで次を開きます。
@@ -122,10 +151,8 @@ http://127.0.0.1:8001
 
 - `llama.cpp` のサーバが起動していること
 - 既定では `http://127.0.0.1:8080/v1` を利用します
-- 必要な Python パッケージ
-  - `fastapi`
-  - `uvicorn`
-  - `openai`
+- Python 3.10 以上を推奨します
+- 必要な Python パッケージは `fastapi`、`uvicorn`、`openai` です
 
 ## 補足
 
