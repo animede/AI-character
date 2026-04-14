@@ -208,7 +208,7 @@ backend は `AsyncOpenAI` の `stream=True` を使っています。
 左カラムには次の要素があります。
 
 - キャラクタ画像
-- キャラクタ名入力
+- キャラクタ名表示
 - 会話ターン記憶数入力
 - キャラクタロール textarea
 - 履歴クリアボタン
@@ -227,6 +227,7 @@ backend は `AsyncOpenAI` の `stream=True` を使っています。
   - assistant の新しい吹き出しを最初のチャンク時にだけ作るためのフラグ
 - `assistantName`
   - 吹き出しラベルに表示するキャラクタ名
+  - Role テキスト内の `名前:` 行から決定する
 
 以前あった以下のような疑似履歴用変数は削除済みです。
 
@@ -282,11 +283,12 @@ backend は `AsyncOpenAI` の `stream=True` を使っています。
 ```mermaid
 classDiagram
     class BrowserUI {
-        +nameInput
+    +characterName
         +numberInput
         +roleText
         +inputText
         +responses
+    +extractCharacterName(roleValue)
         +sendMessage()
         +clearConversation()
         +syncCharacterPanel()

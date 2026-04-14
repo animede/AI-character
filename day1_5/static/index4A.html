@@ -21,14 +21,11 @@
     <main class="layout">
       <aside class="character-panel">
         <div class="character-visual" id="characterVisual">
-          <img src="/static/assets/characters/character.jpg" alt="もも" id="characterImage">
+          <img src="/static/assets/characters/character.jpg" alt="キャラクタ画像" id="characterImage">
           <span id="characterAvatarLabel" class="hidden">も</span>
         </div>
 
         <div class="character-body">
-          <label class="field-label" for="nameInput">キャラクタの名前</label>
-          <input type="text" id="nameInput" placeholder="もも" value="もも">
-
           <h2 id="characterName">もも</h2>
           <p id="characterDescription" class="character-description">AIキャラとしての設定を反映しながら、会話記憶付きでストリーミング対話するアプリです。</p>
 
@@ -77,9 +74,6 @@
     // バックエンドに渡す会話履歴数の入力欄。
     const historyCountInput = document.getElementById("numberInput");
 
-    // キャラクタ名入力欄。送信時の表示名と左カラム表示に使う。
-    const nameInput = document.getElementById("nameInput");
-
     // system role としてバックエンドへ送るキャラクタ設定欄。
     const roleText = document.getElementById("roleText");
 
@@ -96,6 +90,22 @@
     // assistant 側の吹き出しに表示する名前。
     // 送信時点のキャラクタ名を保持して、応答途中で名前がぶれないようにする。
     let assistantName = "もも";
+
+    // Role テキスト中の「名前: ...」から表示名を取り出す。
+    // 明示行がない場合は既存テンプレート文面からも補完を試みる。
+    function extractCharacterName(roleValue) {
+      const nameLineMatch = roleValue.match(/(?:^|\n)\s*-?\s*名前\s*[:：]\s*(.+)/);
+      if (nameLineMatch) {
+        return nameLineMatch[1].trim().replace(/^「(.+)」$/, "$1");
+      }
+
+      const sentenceMatch = roleValue.match(/あなたは.*?「(.+?)」です/);
+      if (sentenceMatch) {
+        return sentenceMatch[1].trim();
+      }
+
+      return "キャラクタ";
+    }
 
     // 入力内容に合わせて textarea の高さを自動調整する。
     function resizeTextarea(textarea) {
@@ -116,8 +126,8 @@
       resizeTextarea(textarea);
     });
 
-    // キャラクタ名を編集したら左カラムの表示へ即時反映する。
-    nameInput.addEventListener("input", syncCharacterPanel);
+    // Role の名前行を書き換えたら左カラム表示にも即時反映する。
+    roleText.addEventListener("input", syncCharacterPanel);
 
     // Enter 送信、Shift + Enter 改行の一般的なチャット操作に合わせる。
     document.getElementById("inputText").addEventListener("keydown", function(event) {
@@ -191,8 +201,8 @@
       // system role としてバックエンドへ送るロール全文。
       const roleMessage = roleText.value.trim();
 
-      // assistant 表示名。空なら既定値の「もも」を使う。
-      const name = nameInput.value.trim() || "もも";
+      // assistant 表示名は Role テキスト内の名前行から決める。
+      const name = extractCharacterName(roleMessage);
 
       if (!message) {
         alert("メッセージを入力してください。");
@@ -242,9 +252,10 @@
 
     // 左カラムのキャラクタ名表示と代替アバター文字を同期する。
     function syncCharacterPanel() {
-      const name = nameInput.value.trim() || "もも";
+      const name = extractCharacterName(roleText.value);
       characterName.textContent = name;
       characterAvatarLabel.textContent = name.slice(0, 1);
+      document.getElementById("characterImage").alt = `${name} の画像`;
     }
 
     // HTML へ安全に埋め込める形へ変換する。
