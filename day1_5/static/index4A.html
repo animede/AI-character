@@ -61,24 +61,50 @@
   </div>
 
   <script>
+    // 現在のページが http / https のどちらで開かれているかに合わせて
+    // WebSocket の接続プロトコルを切り替える。
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+
+    // サーバーとの双方向通信用 WebSocket 本体。
     const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+    // 会話ログを書き込むチャット表示エリア。
     const messagesContainer = document.getElementById("responses");
+
+    // 接続状態を表示する右上のバッジ。
     const statusElement = document.getElementById("connectionStatus");
+
+    // バックエンドに渡す会話履歴数の入力欄。
     const historyCountInput = document.getElementById("numberInput");
+
+    // キャラクタ名入力欄。送信時の表示名と左カラム表示に使う。
     const nameInput = document.getElementById("nameInput");
+
+    // system role としてバックエンドへ送るキャラクタ設定欄。
     const roleText = document.getElementById("roleText");
+
+    // 左カラムに表示しているキャラクタ名ラベル。
     const characterName = document.getElementById("characterName");
+
+    // 画像が使えない場合にも表示できる先頭1文字の代替ラベル。
     const characterAvatarLabel = document.getElementById("characterAvatarLabel");
 
+    // assistant 応答の最初のチャンクかどうかを判定するフラグ。
+    // true のときだけ新しい assistant 吹き出しを 1 個作る。
     let isFirstResponse = true;
+
+    // assistant 側の吹き出しに表示する名前。
+    // 送信時点のキャラクタ名を保持して、応答途中で名前がぶれないようにする。
     let assistantName = "もも";
 
+    // 入力内容に合わせて textarea の高さを自動調整する。
     function resizeTextarea(textarea) {
       textarea.style.height = "auto";
       textarea.style.height = `${textarea.scrollHeight}px`;
     }
 
+    // 通常の入力欄だけ自動伸長の対象にする。
+    // role 欄は固定高さ + 内部スクロールにしてレイアウト崩れを防ぐ。
     document.querySelectorAll("textarea").forEach((textarea) => {
       if (textarea.id === "roleText") {
         return;
@@ -90,8 +116,10 @@
       resizeTextarea(textarea);
     });
 
+    // キャラクタ名を編集したら左カラムの表示へ即時反映する。
     nameInput.addEventListener("input", syncCharacterPanel);
 
+    // Enter 送信、Shift + Enter 改行の一般的なチャット操作に合わせる。
     document.getElementById("inputText").addEventListener("keydown", function(event) {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
@@ -102,24 +130,29 @@
     document.getElementById("sendButton").addEventListener("click", sendMessage);
     document.getElementById("clearButton").addEventListener("click", clearConversation);
 
+    // 接続成功時は状態表示だけ更新する。
     ws.onopen = function() {
       statusElement.textContent = "接続OK";
       statusElement.classList.remove("status-loading", "status-error");
       statusElement.classList.add("status-ok");
     };
 
+    // 切断時は再接続処理は行わず、まず UI に状態だけ反映する。
     ws.onclose = function() {
       statusElement.textContent = "切断";
       statusElement.classList.remove("status-loading", "status-ok");
       statusElement.classList.add("status-error");
     };
 
+    // 通信エラー時もユーザーが気づけるようにバッジへ表示する。
     ws.onerror = function() {
       statusElement.textContent = "接続エラー";
       statusElement.classList.remove("status-loading", "status-ok");
       statusElement.classList.add("status-error");
     };
 
+    // サーバーからはストリーミングされた文字列チャンクが順次届く。
+    // 最初のチャンク時だけ吹き出しを作り、以降は同じ吹き出しへ追記する。
     ws.onmessage = function(event) {
       if (isFirstResponse) {
         const row = document.createElement("div");
@@ -137,6 +170,7 @@
       const lastRow = messagesContainer.lastElementChild;
       const bubble = lastRow ? lastRow.querySelector(".message-bubble") : null;
 
+      // assistant 吹き出しの末尾に受信チャンクを追加していく。
       if (bubble) {
         const span = document.createElement("span");
         span.innerHTML = escapeHtml(event.data);
@@ -146,10 +180,18 @@
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     };
 
+    // 現在の入力値を読み取り、ユーザー吹き出し表示と WebSocket 送信を行う。
     function sendMessage() {
+      // inputText は送信ごとに値を読むので、関数内で取得している。
       const inputElement = document.getElementById("inputText");
+
+      // 実際に送るユーザーメッセージ本文。
       const message = inputElement.value.trim();
+
+      // system role としてバックエンドへ送るロール全文。
       const roleMessage = roleText.value.trim();
+
+      // assistant 表示名。空なら既定値の「もも」を使う。
       const name = nameInput.value.trim() || "もも";
 
       if (!message) {
@@ -157,9 +199,11 @@
         return;
       }
 
+      // 応答途中で入力欄の名前が変わっても、このターン中の表示名は固定する。
       assistantName = name;
       syncCharacterPanel();
 
+      // 送信直後に user 吹き出しを先に描画して、体感待ち時間を減らす。
       const row = document.createElement("div");
       row.className = "message-row user";
 
@@ -170,6 +214,7 @@
       row.appendChild(bubble);
       messagesContainer.appendChild(row);
 
+      // 履歴構築はバックエンド側に任せ、フロントは最新入力だけ送る。
       ws.send(JSON.stringify({
         action: "chat",
         message,
@@ -177,26 +222,33 @@
         max_history: Number(historyCountInput.value || 5),
       }));
 
+      // 次の assistant 応答は新しい吹き出しから始める。
       inputElement.value = "";
       resizeTextarea(inputElement);
       isFirstResponse = true;
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    // 画面表示とバックエンド履歴の両方を初期化する。
     function clearConversation() {
       messagesContainer.innerHTML = "";
       isFirstResponse = true;
+
+      // 接続中のときだけ clear アクションを送る。
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: "clear" }));
       }
     }
 
+    // 左カラムのキャラクタ名表示と代替アバター文字を同期する。
     function syncCharacterPanel() {
       const name = nameInput.value.trim() || "もも";
       characterName.textContent = name;
       characterAvatarLabel.textContent = name.slice(0, 1);
     }
 
+    // HTML へ安全に埋め込める形へ変換する。
+    // 改行はチャット表示しやすいように br へ置換する。
     function escapeHtml(text) {
       return text
         .replaceAll("&", "&amp;")
@@ -207,6 +259,7 @@
         .replaceAll("\n", "<br>");
     }
 
+      // 初期表示時にも左カラムの名前とアバターを同期しておく。
     syncCharacterPanel();
   </script>
 
