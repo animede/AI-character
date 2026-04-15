@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import json
-
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
 from character_registry import get_character, get_default_character
 from conversation_store import conversation_store, new_message_id
 from llm_client import build_messages, stream_chat_chunks
 from schemas import ChatStreamRequest, ConversationCreateRequest
-from settings import MAX_HISTORY_PAIRS, STREAM_MEDIA_TYPE
+from settings import MAX_HISTORY_PAIRS
 
 
-router = APIRouter(prefix="/api", tags=["chat"])
+router = APIRouter(tags=["chat"])
 
 
 def conversation_payload(conversation: dict) -> dict:
@@ -26,11 +24,7 @@ def conversation_payload(conversation: dict) -> dict:
     }
 
 
-def ndjson(data: dict) -> str:
-    return json.dumps(data, ensure_ascii=False) + "\n"
-
-
-@router.post("/conversations")
+@router.post("/api/conversations")
 def create_conversation(payload: ConversationCreateRequest) -> dict:
     try:
         character = get_default_character() if not payload.character_id else get_character(payload.character_id)
@@ -40,7 +34,7 @@ def create_conversation(payload: ConversationCreateRequest) -> dict:
     return conversation_payload(conversation)
 
 
-@router.get("/conversations/{conversation_id}")
+@router.get("/api/conversations/{conversation_id}")
 def get_conversation(conversation_id: str) -> dict:
     conversation = conversation_store.get_conversation(conversation_id)
     if not conversation:
@@ -48,7 +42,7 @@ def get_conversation(conversation_id: str) -> dict:
     return conversation_payload(conversation)
 
 
-@router.post("/conversations/{conversation_id}/clear")
+@router.post("/api/conversations/{conversation_id}/clear")
 def clear_conversation(conversation_id: str) -> dict:
     conversation = conversation_store.get_conversation(conversation_id)
     if not conversation:
@@ -66,27 +60,54 @@ def clear_conversation(conversation_id: str) -> dict:
     }
 
 
-@router.post("/chat/stream")
-def chat_stream(payload: ChatStreamRequest) -> StreamingResponse:
-    conversation = conversation_store.get_conversation(payload.conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    if not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Message must not be empty")
+@router.websocket("/ws")
+async def chat_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
 
-    character = get_character(conversation["character_id"])
-    conversation_store.append_user_message(payload.conversation_id, payload.message.strip())
-    assistant_message_id = new_message_id()
+    while True:
+        try:
+            raw_payload = await websocket.receive_json()
+        except WebSocketDisconnect:
+            break
+        except Exception:
+            await websocket.send_json({"type": "error", "error": "不正なJSONを受信しました。"})
+            continue
 
-    def event_stream():
+        action = raw_payload.get("action")
+        if action != "chat":
+            await websocket.send_json({"type": "error", "error": "未対応のアクションです。"})
+            continue
+
+        try:
+            payload = ChatStreamRequest.model_validate(raw_payload)
+        except ValidationError:
+            await websocket.send_json({"type": "error", "error": "メッセージ形式が不正です。"})
+            continue
+
+        conversation = conversation_store.get_conversation(payload.conversation_id)
+        if not conversation:
+            await websocket.send_json({"type": "error", "error": "Conversation not found"})
+            continue
+
+        message_text = payload.message.strip()
+        if not message_text:
+            await websocket.send_json({"type": "error", "error": "Message must not be empty"})
+            continue
+
+        character = get_character(conversation["character_id"])
+        user_message = conversation_store.append_user_message(payload.conversation_id, message_text)
+        assistant_message_id = new_message_id()
         full_response = ""
+        system_prompt = payload.role.strip() if payload.role else character.system_prompt
+        max_history_pairs = payload.max_history if payload.max_history is not None else MAX_HISTORY_PAIRS
+
         try:
             recent_messages = conversation_store.recent_messages(
                 payload.conversation_id,
-                MAX_HISTORY_PAIRS * 2,
+                max_history_pairs * 2,
             )
-            llm_messages = build_messages(character.system_prompt, recent_messages)
-            yield ndjson(
+            llm_messages = build_messages(system_prompt, recent_messages)
+            await websocket.send_json(
                 {
                     "type": "start",
                     "conversation_id": payload.conversation_id,
@@ -94,9 +115,9 @@ def chat_stream(payload: ChatStreamRequest) -> StreamingResponse:
                     "message_id": assistant_message_id,
                 }
             )
-            for chunk in stream_chat_chunks(llm_messages):
+            async for chunk in stream_chat_chunks(llm_messages):
                 full_response += chunk
-                yield ndjson(
+                await websocket.send_json(
                     {
                         "type": "delta",
                         "message_id": assistant_message_id,
@@ -110,20 +131,30 @@ def chat_stream(payload: ChatStreamRequest) -> StreamingResponse:
                     full_response,
                     message_id=assistant_message_id,
                 )
-            yield ndjson(
+            await websocket.send_json(
                 {
                     "type": "end",
                     "message_id": assistant_message_id,
                     "finish_reason": "stop",
                 }
             )
+        except WebSocketDisconnect:
+            conversation_store.pop_last_message(
+                payload.conversation_id,
+                expected_role="user",
+                expected_message_id=user_message["message_id"],
+            )
+            break
         except Exception as exc:
-            yield ndjson(
+            conversation_store.pop_last_message(
+                payload.conversation_id,
+                expected_role="user",
+                expected_message_id=user_message["message_id"],
+            )
+            await websocket.send_json(
                 {
                     "type": "error",
                     "message_id": assistant_message_id,
                     "error": str(exc),
                 }
             )
-
-    return StreamingResponse(event_stream(), media_type=STREAM_MEDIA_TYPE)

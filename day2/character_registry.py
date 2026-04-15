@@ -49,7 +49,7 @@ class CharacterDefinition:
 
     def public_dict(self) -> dict:
         data = asdict(self)
-        data.pop("system_prompt", None)
+        data["role_text"] = data.pop("system_prompt")
         return data
 
 

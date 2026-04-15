@@ -3,13 +3,11 @@ from __future__ import annotations
 import urllib.error
 import urllib.request
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from settings import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, OPENAI_TIMEOUT_SECONDS
-
-
-def create_client() -> OpenAI:
-    return OpenAI(
+def create_async_client() -> AsyncOpenAI:
+    return AsyncOpenAI(
         base_url=LLM_BASE_URL,
         api_key=LLM_API_KEY,
         timeout=OPENAI_TIMEOUT_SECONDS,
@@ -23,16 +21,16 @@ def build_messages(system_prompt: str, messages: list[dict]) -> list[dict]:
     return payload
 
 
-def stream_chat_chunks(messages: list[dict]):
-    client = create_client()
-    stream = client.chat.completions.create(
+async def stream_chat_chunks(messages: list[dict]):
+    client = create_async_client()
+    stream = await client.chat.completions.create(
         model=LLM_MODEL,
         messages=messages,
         max_tokens=400,
         temperature=0.7,
         stream=True,
     )
-    for chunk in stream:
+    async for chunk in stream:
         delta = chunk.choices[0].delta.content or ""
         if delta:
             yield delta

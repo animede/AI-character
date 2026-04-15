@@ -9,7 +9,7 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 - 軽量な会話管理
 - キャラクター定義の分離
-- ストリーミング応答
+- WebSocket によるストリーミング応答
 - 文字単位に近い逐次表示
 - キャラクター画像の表示
 
@@ -23,7 +23,7 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 - `api_chat.py`
   - 会話関連 API を定義します。
-  - 会話作成、会話取得、会話クリア、ストリーミング会話を担当します。
+  - 会話作成、会話取得、会話クリア、WebSocket 会話を担当します。
 
 - `api_meta.py`
   - メタ情報 API を定義します。
@@ -60,7 +60,7 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 - `static/app.js`
   - フロントエンドの状態管理と API 通信を担当します。
-  - ストリーミング応答の受信、描画キュー、会話表示更新を行います。
+  - WebSocket 応答の受信、描画キュー、会話表示更新を行います。
 
 ### アセット
 
@@ -76,8 +76,8 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 ## ストリーミング仕様
 
-会話 API は HTTP ストリームで NDJSON を返します。
-イベントは次の 4 種類です。
+会話の送受信は WebSocket で行います。
+フロントエンドは `/ws` に接続し、`action: "chat"` を送信すると次の 4 種類のイベントを受信します。
 
 - `start`
   - 応答開始通知
@@ -94,6 +94,9 @@ FastAPI をバックエンドに使い、フロントエンドはシンプルな
 
 リポジトリのルートディレクトリで仮想環境を作成してから起動します。
 
+既定の待受ポートは `8001` です。
+`day1_5` と同じポートで起動したい場合は、環境変数 `APP_PORT=8004` を付けて起動します。
+
 依存パッケージのインストールは、`requirements.txt` を使う方法と、個別に `pip install` する方法のどちらでも構いません。
 
 Linux / macOS:
@@ -104,9 +107,16 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r day2/requirements.txt
 # または
-# python -m pip install fastapi uvicorn openai
+# python -m pip install fastapi uvicorn openai websockets
 cd day2
 python webapp_main.py
+```
+
+`8004` で起動する場合:
+
+```bash
+cd day2
+APP_PORT=8004 python webapp_main.py
 ```
 
 Windows PowerShell:
@@ -117,8 +127,16 @@ py -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -r day2/requirements.txt
 # または
-# python -m pip install fastapi uvicorn openai
+# python -m pip install fastapi uvicorn openai websockets
 cd day2
+python webapp_main.py
+```
+
+`8004` で起動する場合:
+
+```powershell
+cd day2
+$env:APP_PORT = "8004"
 python webapp_main.py
 ```
 
@@ -130,8 +148,16 @@ py -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -r day2/requirements.txt
 REM または
-REM python -m pip install fastapi uvicorn openai
+REM python -m pip install fastapi uvicorn openai websockets
 cd day2
+python webapp_main.py
+```
+
+`8004` で起動する場合:
+
+```bat
+cd day2
+set APP_PORT=8004
 python webapp_main.py
 ```
 
@@ -143,9 +169,22 @@ Linux / macOS:
 ../.venv/bin/python webapp_main.py
 ```
 
+`8004` で起動する場合:
+
+```bash
+APP_PORT=8004 ../.venv/bin/python webapp_main.py
+```
+
 Windows PowerShell / コマンドプロンプト:
 
 ```bat
+..\.venv\Scripts\python.exe webapp_main.py
+```
+
+`8004` で起動する場合:
+
+```bat
+set APP_PORT=8004
 ..\.venv\Scripts\python.exe webapp_main.py
 ```
 
@@ -155,13 +194,20 @@ Windows PowerShell / コマンドプロンプト:
 http://127.0.0.1:8001
 ```
 
+`8004` で起動した場合は次を開きます。
+
+```text
+http://127.0.0.1:8004
+```
+
 ## 前提条件
 
 - `llama.cpp` のサーバが起動していること
 - 既定では `http://127.0.0.1:8080/v1` を利用します
+- Windows で `llama-server` を起動する際に `--host 0.0.0.0` でエラーになる場合は、`--host 127.0.0.1` に変更してください
 - Python 3.10 以上を推奨します
 - 依存パッケージ一覧は [day2/requirements.txt](day2/requirements.txt) に記載しています
-- 必要な Python パッケージは `fastapi`、`uvicorn`、`openai` です
+- 必要な Python パッケージは `fastapi`、`uvicorn`、`openai`、`websockets` です
 
 ## 補足
 

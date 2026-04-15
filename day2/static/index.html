@@ -31,14 +31,15 @@
           <p id="character-description" class="character-description"></p>
           <dl class="character-meta">
             <div>
-              <dt>音声名</dt>
-              <dd id="character-voice">-</dd>
-            </div>
-            <div>
-              <dt>タグ</dt>
-              <dd id="character-tags">-</dd>
+              <dt>会話ターン記憶数</dt>
+              <dd>
+                <input type="number" id="history-count-input" min="0" max="20" value="10" placeholder="0-20">
+              </dd>
             </div>
           </dl>
+
+          <label class="field-label" for="role-text">キャラクタロール</label>
+          <textarea id="role-text" rows="12" placeholder="キャラクター設定や口調を入力"></textarea>
         </div>
         <div class="panel-actions">
           <button id="new-conversation-button" class="secondary-button" type="button">新しい会話</button>

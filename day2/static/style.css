@@ -145,6 +145,8 @@ body {
 }
 
 #character-select,
+#history-count-input,
+#role-text,
 #message-input,
 #send-button,
 .secondary-button {
@@ -152,6 +154,8 @@ body {
 }
 
 #character-select,
+#history-count-input,
+#role-text,
 #message-input {
   width: 100%;
   border-radius: 16px;
@@ -192,6 +196,10 @@ body {
 
 .character-meta dd {
   margin: 4px 0 0;
+}
+
+#history-count-input {
+  max-width: 120px;
 }
 
 .panel-actions {
@@ -290,6 +298,13 @@ body {
   resize: vertical;
   min-height: 72px;
   max-height: 180px;
+}
+
+#role-text {
+  resize: vertical;
+  min-height: 220px;
+  max-height: 320px;
+  line-height: 1.6;
 }
 
 #send-button {

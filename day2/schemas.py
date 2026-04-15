@@ -24,6 +24,7 @@ class CharacterSchema(BaseModel):
     visual_path: str
     voice_name: str
     greeting: str
+    role_text: str
     tags: list[str]
     is_default: bool
 
@@ -35,3 +36,5 @@ class ConversationCreateRequest(BaseModel):
 class ChatStreamRequest(BaseModel):
     conversation_id: str
     message: str = Field(min_length=1)
+    role: str | None = Field(default=None, min_length=1)
+    max_history: int | None = Field(default=None, ge=0, le=20)

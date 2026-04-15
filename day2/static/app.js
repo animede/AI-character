@@ -10,6 +10,8 @@ const state = {
   renderQueue: [],
   streamEnded: false,
   renderLoopRunning: false,
+  socket: null,
+  socketReady: null,
 };
 
 const elements = {
@@ -20,8 +22,8 @@ const elements = {
   characterAvatarLabel: document.getElementById("character-avatar-label"),
   characterName: document.getElementById("character-name"),
   characterDescription: document.getElementById("character-description"),
-  characterVoice: document.getElementById("character-voice"),
-  characterTags: document.getElementById("character-tags"),
+  historyCountInput: document.getElementById("history-count-input"),
+  roleText: document.getElementById("role-text"),
   chatMessages: document.getElementById("chat-messages"),
   errorBanner: document.getElementById("error-banner"),
   composer: document.getElementById("composer"),
@@ -35,7 +37,13 @@ async function init() {
   bindEvents();
   await refreshHealth();
   await loadCharacters();
+  await connectWebSocket();
   await startConversation(state.currentCharacterId);
+}
+
+function getWebSocketUrl() {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}/ws`;
 }
 
 function bindEvents() {
@@ -64,6 +72,92 @@ function bindEvents() {
   elements.clearConversationButton.addEventListener("click", async () => {
     await clearConversation();
   });
+
+  elements.roleText.addEventListener("input", () => {
+    syncCharacterPanel();
+  });
+}
+
+function extractCharacterName(roleValue, fallbackName) {
+  const nameLineMatch = roleValue.match(/(?:^|\n)\s*-?\s*名前\s*[:：]\s*(.+)/);
+  if (nameLineMatch) {
+    return nameLineMatch[1].trim().replace(/^「(.+)」$/, "$1");
+  }
+
+  const sentenceMatch = roleValue.match(/あなたは.*?「(.+?)」です/);
+  if (sentenceMatch) {
+    return sentenceMatch[1].trim();
+  }
+
+  return fallbackName;
+}
+
+function syncCharacterPanel() {
+  const character = getCurrentCharacter();
+  if (!character) {
+    return;
+  }
+
+  const name = extractCharacterName(elements.roleText.value, character.display_name);
+  elements.characterName.textContent = name;
+  elements.characterAvatarLabel.textContent = name.slice(0, 1);
+
+  const image = elements.characterVisual.querySelector("img");
+  if (image) {
+    image.alt = `${name} の画像`;
+  }
+}
+
+function connectWebSocket() {
+  if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+    return Promise.resolve();
+  }
+
+  if (state.socketReady) {
+    return state.socketReady;
+  }
+
+  state.socketReady = new Promise((resolve, reject) => {
+    const socket = new WebSocket(getWebSocketUrl());
+    let settled = false;
+
+    socket.addEventListener("open", () => {
+      state.socket = socket;
+      settled = true;
+      resolve();
+    });
+
+    socket.addEventListener("message", (event) => {
+      handleSocketEvent(JSON.parse(event.data));
+    });
+
+    socket.addEventListener("error", () => {
+      if (!settled) {
+        settled = true;
+        reject(new Error("WebSocket接続を開始できませんでした。"));
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      if (state.socket === socket) {
+        state.socket = null;
+      }
+      state.socketReady = null;
+
+      if (!settled) {
+        settled = true;
+        reject(new Error("WebSocket接続を開始できませんでした。"));
+        return;
+      }
+
+      if (state.isStreaming) {
+        showError("WebSocket接続が切断されました。");
+        finalizeStreamingError();
+      }
+    });
+  });
+
+  return state.socketReady;
 }
 
 async function refreshHealth() {
@@ -130,16 +224,14 @@ function renderCharacterPanel() {
     return;
   }
 
-  elements.characterName.textContent = character.display_name;
   elements.characterDescription.textContent = character.short_description;
-  elements.characterVoice.textContent = character.voice_name;
-  elements.characterTags.textContent = character.tags.join(" / ");
+  elements.roleText.value = character.role_text;
 
   elements.characterVisual.innerHTML = "";
   if (character.visual_type === "image" && character.visual_path) {
     const image = document.createElement("img");
     image.src = character.visual_path;
-    image.alt = character.display_name;
+    image.alt = `${character.display_name} の画像`;
     elements.characterVisual.appendChild(image);
   } else if (character.visual_type === "video" && character.visual_path) {
     const video = document.createElement("video");
@@ -158,6 +250,7 @@ function renderCharacterPanel() {
   document.documentElement.style.setProperty("--accent", character.theme_color);
   document.documentElement.style.setProperty("--accent-deep", character.theme_color);
   document.documentElement.style.setProperty("--accent-cool", character.ui_accent_color);
+  syncCharacterPanel();
 }
 
 async function startConversation(characterId) {
@@ -238,6 +331,8 @@ function updateMessageContent(messageId, content, status = "pending") {
 
 async function sendMessage() {
   const message = elements.messageInput.value.trim();
+  const roleText = elements.roleText.value.trim();
+  const historyCount = Number(elements.historyCountInput.value || 10);
   if (!message || state.isStreaming || !state.currentConversationId) {
     return;
   }
@@ -260,51 +355,27 @@ async function sendMessage() {
   elements.messageInput.value = "";
 
   try {
-    const response = await fetch("/api/chat/stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    await connectWebSocket();
+    if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket接続を利用できません。");
+    }
+
+    state.socket.send(
+      JSON.stringify({
+        action: "chat",
         conversation_id: state.currentConversationId,
         message,
-      }),
-    });
-
-    if (!response.ok || !response.body) {
-      throw new Error("ストリーミングを開始できませんでした。");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.trim()) {
-          continue;
-        }
-        handleStreamEvent(JSON.parse(line));
-      }
-    }
-
-    if (buffer.trim()) {
-      handleStreamEvent(JSON.parse(buffer));
-    }
+        role: roleText,
+        max_history: historyCount,
+      })
+    );
   } catch (error) {
     showError(error.message || "通信中にエラーが発生しました。");
     finalizeStreamingError();
   }
 }
 
-function handleStreamEvent(event) {
+function handleSocketEvent(event) {
   if (event.type === "start") {
     const assistantMessage = {
       message_id: event.message_id,

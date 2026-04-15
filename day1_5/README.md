@@ -88,6 +88,71 @@ http://127.0.0.1:8004
 - このアプリは LLM 本体を内蔵していないため、`LLM_BASE_URL` で指す OpenAI 互換 API が別途必要です
 - 既定値では `http://127.0.0.1:8080/v1` を参照するため、Windows 側でも同等の API を起動するか、環境変数を書き換えてください
 
+## llama.cpp サーバ起動例
+
+`day1_5` は、OpenAI 互換 API として `llama.cpp` の `llama-server` を利用できます。
+
+Linux / macOS での基本起動例:
+
+```bash
+cd /home/animede/llama.cpp/build/bin
+LD_LIBRARY_PATH=. ./llama-server \
+  -hf unsloth/gemma-4-E4B-it-GGUF:Q4_K_M \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --reasoning off
+```
+
+Windows では、環境によって `--host 0.0.0.0` を付けると起動エラーになる場合があります。
+その場合は `--host 127.0.0.1` に変更してください。
+
+Windows での例:
+
+```powershell
+cd C:\path\to\llama.cpp\build\bin
+$env:LD_LIBRARY_PATH = "."
+.\llama-server.exe `
+  -hf unsloth/gemma-4-E4B-it-GGUF:Q4_K_M `
+  --host 127.0.0.1 `
+  --port 8080 `
+  --reasoning off
+```
+
+コンテキスト長を大きめに固定したい場合の例:
+
+```bash
+cd /home/animede/llama.cpp/build/bin
+LD_LIBRARY_PATH=. ./llama-server \
+  -hf unsloth/gemma-4-E4B-it-GGUF:Q4_K_M \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --reasoning off \
+  --ctx-size 131072
+```
+
+### `--threads` の付け方
+
+- `--threads N`
+  - トークン生成時に使う CPU スレッド数です
+- `--threads-batch N`
+  - プロンプト投入やバッチ処理に使う CPU スレッド数です
+- どちらも省略すると、`llama-server` の既定値で動きます
+
+例: 生成とバッチ処理を 10 スレッドずつにしたい場合
+
+```bash
+cd /home/animede/llama.cpp/build/bin
+LD_LIBRARY_PATH=. ./llama-server \
+  -hf unsloth/gemma-4-E4B-it-GGUF:Q4_K_M \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --reasoning off \
+  --threads 10 \
+  --threads-batch 10
+```
+
+まずはスレッド指定なしで試し、必要な場合だけ `--threads` と `--threads-batch` を付けて比較するのが安全です。
+
 ## 環境変数
 
 - `LLM_BASE_URL`

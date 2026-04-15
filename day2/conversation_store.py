@@ -99,5 +99,27 @@ class ConversationStore:
             messages = self._conversations[conversation_id]["messages"]
             return deepcopy(messages[-max_messages:])
 
+    def pop_last_message(
+        self,
+        conversation_id: str,
+        *,
+        expected_role: str | None = None,
+        expected_message_id: str | None = None,
+    ) -> dict | None:
+        with self._lock:
+            conversation = self._conversations.get(conversation_id)
+            if not conversation or not conversation["messages"]:
+                return None
+
+            last_message = conversation["messages"][-1]
+            if expected_role and last_message["role"] != expected_role:
+                return None
+            if expected_message_id and last_message["message_id"] != expected_message_id:
+                return None
+
+            removed_message = conversation["messages"].pop()
+            conversation["updated_at"] = utc_now_iso()
+            return deepcopy(removed_message)
+
 
 conversation_store = ConversationStore()
