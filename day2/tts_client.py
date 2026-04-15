@@ -47,18 +47,26 @@ class TTSClient:
         self.audio_format = TTS_AUDIO_FORMAT
 
     def is_configured(self) -> bool:
-        # 有効フラグ、接続先 URL、speaker の 3 条件がそろったときだけ利用候補にする。
+        # 明示的に TTS を有効化した設定かどうかを返す。
         return self.enabled and bool(self.base_url) and bool(self.speaker_id)
 
-    def is_available(self) -> bool:
-        # 実サーバへ軽く疎通できてはじめて、Aivis / VOICEVOX 互換 TTS が使えると判断する。
-        if not self.is_configured():
+    def has_target(self) -> bool:
+        # 実サーバへ疎通確認できる最小条件は、接続先 URL と speaker 指定があること。
+        return bool(self.base_url) and bool(self.speaker_id)
+
+    def has_live_engine(self) -> bool:
+        # 環境変数の ON/OFF に関わらず、実サーバへ疎通できるかを返す。
+        if not self.has_target():
             return False
 
         try:
             return bool(self.get_engine_version())
         except Exception:
             return False
+
+    def is_available(self) -> bool:
+        # 実サーバへ軽く疎通できてはじめて、Aivis / VOICEVOX 互換 TTS が使えると判断する。
+        return self.has_live_engine()
 
     def get_engine_version(self) -> str:
         # /version は軽量なので、接続確認にもそのまま使う。
@@ -142,6 +150,7 @@ class TTSClient:
         # health 用に、失敗時もレスポンス形を固定した状態情報を返す。
         configured = self.is_configured()
         status: dict[str, Any] = {
+            "enabled": self.enabled,
             "configured": configured,
             "available": False,
             "base_url": self.base_url,
@@ -151,8 +160,8 @@ class TTSClient:
             "version": None,
             "error": None,
         }
-        if not configured:
-            status["error"] = "TTS is disabled or not configured"
+        if not self.has_target():
+            status["error"] = "TTS target URL or speaker ID is missing"
             return status
 
         try:

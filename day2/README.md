@@ -283,7 +283,7 @@ curl -s http://127.0.0.1:8001/api/tts/voices
 
 - `llama.cpp` のサーバが起動していること
 - 既定では `http://127.0.0.1:8080/v1` を利用します
-- 音声ストリーミングを有効にする場合は、Aivis / VOICEVOX 互換 TTS サーバを別途起動し、環境変数 `TTS_ENABLED=true` を指定してください
+- 音声ストリーミングを有効にするには、Aivis / VOICEVOX 互換 TTS サーバを別途起動してください。`TTS_ENABLED=true` を付けると明示的に TTS 有効設定で起動できます
 - TTS エンジンは [Aivis Project](https://aivis-project.com/) の AivisSpeech Engine を利用します。このアプリには同梱していないため、別途インストールが必要です
 - 既定の TTS 接続先は `http://127.0.0.1:10101`、話者 ID は `888753760` です
 - AivisSpeech Engine では、利用可能な話者 ID は `/speakers`、インストール済みモデル情報は `/aivm_models` から取得できます。このアプリでは `/api/tts/voices` にまとめて公開しています

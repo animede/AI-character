@@ -69,8 +69,8 @@ async def send_stream_error(
 
 
 def resolve_audio_enabled(payload: ChatStreamRequest) -> bool:
-    # クライアント指定の ON/OFF と、サーバ側の利用可否の両方を満たしたときだけ有効化する。
-    return payload.audio_enabled and tts_client.is_available()
+    # クライアント指定の ON/OFF に加え、実サーバへ疎通できるときだけ音声送信を有効化する。
+    return payload.audio_enabled and tts_client.has_live_engine()
 
 
 def rollback_user_message(conversation_id: str, user_message_id: str) -> None:
