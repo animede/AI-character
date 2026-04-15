@@ -223,10 +223,7 @@ async function refreshHealth() {
     state.modelName = data.model || "-";
     state.ttsAvailable = Boolean(data.tts_available);
     state.ttsStatus = data.tts_status || null;
-    elements.audioEnabledToggle.disabled = !state.ttsAvailable;
-    elements.audioEnabledToggle.checked = state.ttsAvailable;
-    // TTS 未接続時はトグル自体を無効化して text-only に固定する。
-    elements.audioEnabledLabel.textContent = state.ttsAvailable ? "音声を再生する" : "TTS未接続";
+    syncTtsAvailability();
     if (!state.currentCharacterId) {
       state.currentCharacterId = data.default_character_id;
     }
@@ -248,7 +245,44 @@ async function refreshTtsCatalog() {
     state.ttsCatalog = null;
     state.selectedTtsStyleId = null;
   }
+  syncTtsAvailability();
   renderTtsPanel();
+}
+
+function syncTtsAvailability() {
+  const healthAvailable = Boolean(state.ttsStatus?.available ?? state.ttsAvailable);
+  const catalogHasVoices = Boolean(
+    state.ttsCatalog &&
+      state.ttsCatalog.available !== false &&
+      Array.isArray(state.ttsCatalog.speakers) &&
+      state.ttsCatalog.speakers.length > 0
+  );
+  const nextTtsAvailable = healthAvailable || catalogHasVoices;
+  const wasDisabled = elements.audioEnabledToggle.disabled;
+
+  state.ttsAvailable = nextTtsAvailable;
+  if (catalogHasVoices && state.ttsStatus) {
+    state.ttsStatus = {
+      ...state.ttsStatus,
+      available: true,
+      version: state.ttsCatalog.version || state.ttsStatus.version,
+      error: null,
+    };
+  }
+
+  elements.audioEnabledToggle.disabled = !state.ttsAvailable;
+  if (!state.ttsAvailable) {
+    // TTS 未接続時はトグル自体を無効化して text-only に固定する。
+    elements.audioEnabledToggle.checked = false;
+    elements.audioEnabledLabel.textContent = "TTS未接続";
+    return;
+  }
+
+  if (wasDisabled) {
+    // 後から catalog が取れた場合は、自動で音声利用可能な状態へ復帰させる。
+    elements.audioEnabledToggle.checked = true;
+  }
+  elements.audioEnabledLabel.textContent = "音声を再生する";
 }
 
 function syncSelectedTtsStyleId() {
