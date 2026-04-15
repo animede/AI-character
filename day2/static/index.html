@@ -49,6 +49,27 @@
             </div>
           </dl>
 
+          <!-- TTS の現在状態と、取得済みボイス一覧を確認するための情報枠。 -->
+          <div class="tts-panel">
+            <label class="field-label" for="tts-voice-summary">現在のTTSボイス</label>
+            <div id="tts-voice-summary" class="tts-summary">確認中</div>
+            <label class="field-label" for="tts-voice-select">読み上げボイスを選ぶ</label>
+            <select id="tts-voice-select"></select>
+            <details class="tts-inspector">
+              <summary>利用可能なボイスとモデル</summary>
+              <div class="tts-inspector-body">
+                <div>
+                  <p class="tts-section-title">話者 / スタイル</p>
+                  <ul id="tts-voice-list" class="tts-list"></ul>
+                </div>
+                <div>
+                  <p class="tts-section-title">音声モデル</p>
+                  <ul id="tts-model-list" class="tts-list"></ul>
+                </div>
+              </div>
+            </details>
+          </div>
+
           <label class="field-label" for="role-text">キャラクタロール</label>
           <textarea id="role-text" rows="12" placeholder="キャラクター設定や口調を入力"></textarea>
         </div>
@@ -72,6 +93,11 @@
         </form>
       </section>
     </main>
+
+    <footer class="page-credit">
+      <span>AIVIS CV: <span id="footer-tts-voice">確認中</span></span>
+      <span>© ゆずき</span>
+    </footer>
   </div>
 
   <script src="/static/app.js"></script>

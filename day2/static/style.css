@@ -38,6 +38,18 @@ body {
   flex-direction: column;
 }
 
+.page-credit {
+  margin-top: 12px;
+  padding: 10px 18px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.02em;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -117,6 +129,12 @@ body {
   gap: 16px;
 }
 
+.character-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .layout.visual-expanded .character-panel {
   display: none;
 }
@@ -155,6 +173,7 @@ body {
 }
 
 #character-select,
+#tts-voice-select,
 #history-count-input,
 #role-text,
 #message-input,
@@ -164,6 +183,7 @@ body {
 }
 
 #character-select,
+#tts-voice-select,
 #history-count-input,
 #role-text,
 #message-input {
@@ -173,6 +193,10 @@ body {
   background: var(--panel-strong);
   padding: 14px 16px;
   color: var(--text);
+}
+
+#tts-voice-select {
+  margin-bottom: 10px;
 }
 
 .character-body h2 {
@@ -218,6 +242,88 @@ body {
 .toggle-field input {
   width: 18px;
   height: 18px;
+}
+
+.tts-panel {
+  margin-top: 18px;
+}
+
+.tts-summary,
+.tts-inspector {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.tts-summary {
+  padding: 12px 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.tts-summary.is-muted {
+  color: var(--muted);
+}
+
+.tts-inspector {
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.tts-inspector summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  color: var(--accent-cool);
+}
+
+.tts-inspector summary::-webkit-details-marker {
+  display: none;
+}
+
+.tts-inspector-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.tts-section-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.tts-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.tts-list li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 250, 244, 0.82);
+  border: 1px solid rgba(53, 44, 37, 0.08);
+  line-height: 1.5;
+  font-size: 0.88rem;
+}
+
+.tts-list li.is-selected {
+  border-color: rgba(31, 122, 140, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(31, 122, 140, 0.18);
+}
+
+.tts-list strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.tts-list span {
+  display: block;
+  color: var(--muted);
 }
 
 #history-count-input {

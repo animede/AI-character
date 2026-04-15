@@ -41,3 +41,4 @@ class ChatStreamRequest(BaseModel):
     role: str | None = Field(default=None, min_length=1)
     max_history: int | None = Field(default=None, ge=0, le=20)
     audio_enabled: bool
+    selected_style_id: int | None = None

@@ -252,9 +252,32 @@ curl -s http://127.0.0.1:8001/api/health
   "llm_status": "ok",
   "model": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",
   "default_character_id": "momo",
-  "tts_available": true
+  "tts_available": true,
+  "tts_status": {
+    "configured": true,
+    "available": true,
+    "base_url": "http://127.0.0.1:10101",
+    "protocol": "voicevox-compatible",
+    "audio_format": "wav",
+    "default_style_id": "888753760",
+    "version": "1.0.0",
+    "error": null
+  }
 }
 ```
+
+利用可能な AivisSpeech Engine の話者・スタイル・インストール済みモデル一覧は、次で確認できます。
+
+```bash
+curl -s http://127.0.0.1:8001/api/tts/voices
+```
+
+この API では主に次の情報を返します。
+
+- `speakers`: `/speakers` をもとにした話者一覧と style ID 一覧
+- `models`: `/aivm_models` をもとにしたインストール済み AIVM モデル一覧
+- `selected_voice`: 現在の `TTS_SPEAKER_ID` に一致する既定スタイル
+- `version`: 接続先 AivisSpeech Engine のバージョン
 
 ## 前提条件
 
@@ -262,6 +285,21 @@ curl -s http://127.0.0.1:8001/api/health
 - 既定では `http://127.0.0.1:8080/v1` を利用します
 - 音声ストリーミングを有効にする場合は、Aivis / VOICEVOX 互換 TTS サーバを別途起動し、環境変数 `TTS_ENABLED=true` を指定してください
 - 既定の TTS 接続先は `http://127.0.0.1:10101`、話者 ID は `888753760` です
+- AivisSpeech Engine では、利用可能な話者 ID は `/speakers`、インストール済みモデル情報は `/aivm_models` から取得できます。このアプリでは `/api/tts/voices` にまとめて公開しています
+- Windows / macOS では、AivisSpeech 本体に同梱された AivisSpeech Engine をそのまま起動する方法が簡単です
+- 引用元: Aivis-Project / AivisSpeech-Engine README の「導入方法 > Windows / macOS」
+
+> Windows / macOS では、AivisSpeech Engine を単独でインストールすることもできますが、AivisSpeech 本体に付属する AivisSpeech Engine を単独で起動させた方がより簡単です。
+>
+> AivisSpeech に同梱されている AivisSpeech Engine の実行ファイル (`run.exe` / `run`) のパスは以下のとおりです。
+>
+> - Windows: `C:\Program Files\AivisSpeech\AivisSpeech-Engine\run.exe`（導入先によってパスは異なります）
+> - Windows (ユーザー権限インストール): `C:\Users\(ユーザー名)\AppData\Local\Programs\AivisSpeech\AivisSpeech-Engine\run.exe`
+> - macOS: `/Applications/AivisSpeech.app/Contents/Resources/AivisSpeech-Engine/run`（導入先によってパスは異なります）
+> - macOS (ユーザー権限インストール): `~/Applications/AivisSpeech.app/Contents/Resources/AivisSpeech-Engine/run`
+>
+> 出典: [Aivis-Project/AivisSpeech-Engine README](https://github.com/Aivis-Project/AivisSpeech-Engine) 「導入方法 > Windows / macOS」
+
 - Windows で `llama-server` を起動する際に `--host 0.0.0.0` でエラーになる場合は、`--host 127.0.0.1` に変更してください
 - Python 3.10 以上を推奨します
 - 依存パッケージ一覧は [day2/requirements.txt](day2/requirements.txt) に記載しています
@@ -283,12 +321,16 @@ TTS_ENABLED=true python webapp_main.py
 3. 必要なら「キャラクタロール」を編集して、口調や設定を調整します。
 4. 「会話ターン記憶数」で、直近何ターンぶん履歴を渡すかを調整します。
 5. TTS サーバが接続されている場合は、「音声ストリーミング」を ON/OFF します。
-6. 下部の入力欄にメッセージを入れて「送信」します。
+6. 左側の「読み上げボイスを選ぶ」で、AivisSpeech Engine の style ID を切り替えられます。
+7. 「現在のTTSボイス」には、次の送信で使われる話者 / スタイルが表示されます。
+8. 「利用可能なボイスとモデル」を開くと、取得済みの話者一覧・style ID 一覧・インストール済みモデル一覧を確認できます。
+9. 下部の入力欄にメッセージを入れて「送信」します。
 
 送信後の画面挙動:
 
 - assistant の返答は WebSocket でストリーミング表示されます
 - 音声ストリーミングが ON のときは、文区切りごとに順番再生されます
+- 読み上げボイスを切り替えると、次の送信ターンから新しい style ID で音声合成されます
 - 音声再生中はキャラクター表示が `talking.mp4` に切り替わります
 - 応答後の待機中は `waiting.mp4` に切り替わります
 - 初期状態では `character.jpg` を表示します

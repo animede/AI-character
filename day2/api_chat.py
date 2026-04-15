@@ -88,11 +88,12 @@ async def send_audio_segment(
     assistant_message_id: str,
     segment_index: int,
     segment: str,
+    selected_style_id: int | None,
 ) -> bool:
     # 1 文ぶんの TTS 合成と audio イベント送信を 1 つの責務として切り出す。
     try:
         # 同期 HTTP 呼び出しなので、イベントループを塞がないよう別スレッドへ逃がす。
-        audio_bytes = await asyncio.to_thread(tts_client.synthesize, segment)
+        audio_bytes = await asyncio.to_thread(tts_client.synthesize, segment, selected_style_id)
     except Exception as exc:
         # TTS 失敗はターン全体を落とさず、音声だけ欠落させて継続する。
         await send_stream_error(
@@ -127,6 +128,7 @@ async def stream_audio_segments(
     assistant_message_id: str,
     segments: list[str],
     start_index: int,
+    selected_style_id: int | None,
 ) -> int:
     # 複数文の TTS 送信をまとめ、採番の進み方だけ呼び出し元へ返す。
     segment_index = start_index
@@ -136,6 +138,7 @@ async def stream_audio_segments(
             assistant_message_id=assistant_message_id,
             segment_index=segment_index,
             segment=segment,
+            selected_style_id=selected_style_id,
         )
         if sent:
             segment_index += 1
@@ -159,6 +162,7 @@ async def handle_chat_turn(
     max_history_pairs = payload.max_history if payload.max_history is not None else MAX_HISTORY_PAIRS
     # audio_enabled の最終判定は helper に寄せ、TTS 利用条件を 1 箇所に固定する。
     audio_enabled = resolve_audio_enabled(payload)
+    selected_style_id = payload.selected_style_id
     segmenter = SentenceSegmenter()
     segment_index = 0
 
@@ -176,6 +180,7 @@ async def handle_chat_turn(
                 "character_id": character.id,
                 "message_id": assistant_message_id,
                 "audio_enabled": audio_enabled,
+                "selected_style_id": selected_style_id,
             }
         )
         async for chunk in stream_chat_chunks(llm_messages):
@@ -197,6 +202,7 @@ async def handle_chat_turn(
                 assistant_message_id=assistant_message_id,
                 segments=segmenter.push(chunk),
                 start_index=segment_index,
+                selected_style_id=selected_style_id,
             )
 
         if audio_enabled:
@@ -206,6 +212,7 @@ async def handle_chat_turn(
                 assistant_message_id=assistant_message_id,
                 segments=segmenter.flush(),
                 start_index=segment_index,
+                selected_style_id=selected_style_id,
             )
 
         if full_response:

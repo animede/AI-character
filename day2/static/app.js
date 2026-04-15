@@ -14,6 +14,9 @@ const state = {
   socket: null,
   socketReady: null,
   ttsAvailable: false,
+  ttsStatus: null,
+  ttsCatalog: null,
+  selectedTtsStyleId: null,
   audioQueue: [],
   isAudioPlaying: false,
   currentAudioElement: null,
@@ -40,6 +43,11 @@ const elements = {
   historyCountInput: document.getElementById("history-count-input"),
   audioEnabledToggle: document.getElementById("audio-enabled-toggle"),
   audioEnabledLabel: document.getElementById("audio-enabled-label"),
+  ttsVoiceSummary: document.getElementById("tts-voice-summary"),
+  ttsVoiceSelect: document.getElementById("tts-voice-select"),
+  ttsVoiceList: document.getElementById("tts-voice-list"),
+  ttsModelList: document.getElementById("tts-model-list"),
+  footerTtsVoice: document.getElementById("footer-tts-voice"),
   roleText: document.getElementById("role-text"),
   chatMessages: document.getElementById("chat-messages"),
   errorBanner: document.getElementById("error-banner"),
@@ -54,6 +62,7 @@ async function init() {
   // 初期表示に必要な順で、UI バインド、状態取得、通信確立、会話開始まで進める。
   bindEvents();
   await refreshHealth();
+  await refreshTtsCatalog();
   await loadCharacters();
   await connectWebSocket();
   await startConversation(state.currentCharacterId);
@@ -107,6 +116,12 @@ function bindEvents() {
 
   elements.roleText.addEventListener("input", () => {
     syncCharacterPanel();
+  });
+
+  elements.ttsVoiceSelect.addEventListener("change", (event) => {
+    const value = event.target.value;
+    state.selectedTtsStyleId = value ? Number(value) : null;
+    renderTtsPanel();
   });
 }
 
@@ -207,6 +222,7 @@ async function refreshHealth() {
     state.serverStatus = data.llm_status === "ok" ? "ok" : "error";
     state.modelName = data.model || "-";
     state.ttsAvailable = Boolean(data.tts_available);
+    state.ttsStatus = data.tts_status || null;
     elements.audioEnabledToggle.disabled = !state.ttsAvailable;
     elements.audioEnabledToggle.checked = state.ttsAvailable;
     // TTS 未接続時はトグル自体を無効化して text-only に固定する。
@@ -220,6 +236,46 @@ async function refreshHealth() {
     updateServerStatus();
     showError("バックエンドまたはLLMサーバに接続できません。");
   }
+}
+
+async function refreshTtsCatalog() {
+  try {
+    const response = await fetch("/api/tts/voices");
+    const data = await response.json();
+    state.ttsCatalog = data;
+    syncSelectedTtsStyleId();
+  } catch (error) {
+    state.ttsCatalog = null;
+    state.selectedTtsStyleId = null;
+  }
+  renderTtsPanel();
+}
+
+function syncSelectedTtsStyleId() {
+  const catalog = state.ttsCatalog;
+  if (!catalog || !Array.isArray(catalog.speakers)) {
+    state.selectedTtsStyleId = null;
+    return;
+  }
+
+  const availableStyleIds = catalog.speakers.flatMap((speaker) =>
+    (speaker.styles || []).map((style) => style.id)
+  );
+  if (availableStyleIds.length === 0) {
+    state.selectedTtsStyleId = null;
+    return;
+  }
+
+  if (availableStyleIds.includes(state.selectedTtsStyleId)) {
+    return;
+  }
+
+  if (availableStyleIds.includes(catalog.default_style_id)) {
+    state.selectedTtsStyleId = catalog.default_style_id;
+    return;
+  }
+
+  state.selectedTtsStyleId = availableStyleIds[0];
 }
 
 function updateServerStatus() {
@@ -236,6 +292,139 @@ function updateServerStatus() {
     elements.serverStatus.textContent = "接続確認中";
   }
   elements.modelName.textContent = `model: ${state.modelName}`;
+}
+
+function renderTtsPanel() {
+  const status = state.ttsStatus;
+  const catalog = state.ttsCatalog;
+  const summary = elements.ttsVoiceSummary;
+  const voiceSelect = elements.ttsVoiceSelect;
+  const voiceList = elements.ttsVoiceList;
+  const modelList = elements.ttsModelList;
+  const footerTtsVoice = elements.footerTtsVoice;
+  if (!summary || !voiceSelect || !voiceList || !modelList) {
+    return;
+  }
+
+  voiceSelect.innerHTML = "";
+  voiceList.innerHTML = "";
+  modelList.innerHTML = "";
+
+  if (!catalog || catalog.available === false) {
+    const reason = status?.error || catalog?.error || "TTS未接続";
+    summary.textContent = reason;
+    summary.classList.add("is-muted");
+    if (footerTtsVoice) {
+      footerTtsVoice.textContent = "TTS未接続";
+    }
+    voiceSelect.disabled = true;
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "TTS未接続";
+    voiceSelect.appendChild(option);
+    appendListPlaceholder(voiceList, "利用できるボイスはまだ取得できていません。");
+    appendListPlaceholder(modelList, "利用できるモデルはまだ取得できていません。");
+    return;
+  }
+
+  summary.classList.remove("is-muted");
+  voiceSelect.disabled = false;
+
+  for (const speaker of catalog.speakers || []) {
+    for (const style of speaker.styles || []) {
+      const option = document.createElement("option");
+      option.value = String(style.id);
+      option.textContent = `${speaker.name} / ${style.name} (${style.id})`;
+      if (style.id === state.selectedTtsStyleId) {
+        option.selected = true;
+      }
+      voiceSelect.appendChild(option);
+    }
+  }
+
+  const selectedVoice = getSelectedTtsVoice();
+  if (selectedVoice) {
+    summary.textContent = `${selectedVoice.speaker_name} / ${selectedVoice.style_name} (${catalog.version})`;
+    if (footerTtsVoice) {
+      footerTtsVoice.textContent = `${selectedVoice.speaker_name} / ${selectedVoice.style_name}`;
+    }
+  } else {
+    summary.textContent = `style_id ${state.selectedTtsStyleId ?? catalog.default_style_id} / version ${catalog.version}`;
+    if (footerTtsVoice) {
+      footerTtsVoice.textContent = `style_id ${state.selectedTtsStyleId ?? catalog.default_style_id}`;
+    }
+  }
+
+  const selectedStyleId = selectedVoice?.style_id;
+  for (const speaker of catalog.speakers || []) {
+    const styleNames = (speaker.styles || []).map((style) => `${style.name} (${style.id})`).join(", ");
+    const hasSelectedStyle = (speaker.styles || []).some((style) => style.id === selectedStyleId);
+    appendCatalogItem(
+      voiceList,
+      speaker.name,
+      styleNames || "スタイル情報なし",
+      hasSelectedStyle
+    );
+  }
+  if (!voiceList.children.length) {
+    appendListPlaceholder(voiceList, "話者一覧は空です。");
+  }
+
+  for (const model of catalog.models || []) {
+    const suffix = model.is_default_model ? " / default" : "";
+    appendCatalogItem(
+      modelList,
+      `${model.name}${suffix}`,
+      `${model.speaker_count} speaker${model.speaker_count === 1 ? "" : "s"}`,
+      Boolean(model.is_loaded)
+    );
+  }
+  if (!modelList.children.length) {
+    appendListPlaceholder(modelList, "モデル一覧は空です。");
+  }
+}
+
+function appendCatalogItem(listElement, title, subtitle, isSelected = false) {
+  const item = document.createElement("li");
+  if (isSelected) {
+    item.classList.add("is-selected");
+  }
+
+  const strong = document.createElement("strong");
+  strong.textContent = title;
+  item.appendChild(strong);
+
+  const span = document.createElement("span");
+  span.textContent = subtitle;
+  item.appendChild(span);
+
+  listElement.appendChild(item);
+}
+
+function appendListPlaceholder(listElement, text) {
+  appendCatalogItem(listElement, text, "", false);
+}
+
+function getSelectedTtsVoice() {
+  const catalog = state.ttsCatalog;
+  if (!catalog) {
+    return null;
+  }
+
+  for (const speaker of catalog.speakers || []) {
+    for (const style of speaker.styles || []) {
+      if (style.id === state.selectedTtsStyleId) {
+        return {
+          speaker_name: speaker.name,
+          speaker_uuid: speaker.speaker_uuid,
+          style_id: style.id,
+          style_name: style.name,
+          style_type: style.type,
+        };
+      }
+    }
+  }
+  return catalog.selected_voice || null;
 }
 
 async function loadCharacters() {
@@ -550,6 +739,7 @@ async function sendMessage() {
         role: roleText,
         max_history: historyCount,
         audio_enabled: audioEnabled,
+        selected_style_id: state.selectedTtsStyleId,
       })
     );
   } catch (error) {
