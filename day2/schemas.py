@@ -22,6 +22,8 @@ class CharacterSchema(BaseModel):
     avatar_label: str
     visual_type: Literal["image", "video", "none"]
     visual_path: str
+    talking_visual_path: str
+    waiting_visual_path: str
     voice_name: str
     greeting: str
     role_text: str
@@ -38,3 +40,4 @@ class ChatStreamRequest(BaseModel):
     message: str = Field(min_length=1)
     role: str | None = Field(default=None, min_length=1)
     max_history: int | None = Field(default=None, ge=0, le=20)
+    audio_enabled: bool

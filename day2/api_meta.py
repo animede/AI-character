@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from character_registry import get_default_character, list_public_characters
 from llm_client import llm_health_status
-from settings import LLM_MODEL
+from settings import LLM_MODEL, TTS_ENABLED
 
 
 router = APIRouter(prefix="/api", tags=["meta"])
@@ -19,6 +19,7 @@ def health() -> dict:
         "llm_status": llm_status,
         "model": LLM_MODEL,
         "default_character_id": default_character.id,
+        "tts_available": TTS_ENABLED,
     }
 
 

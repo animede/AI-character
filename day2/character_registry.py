@@ -42,6 +42,8 @@ class CharacterDefinition:
     avatar_label: str
     visual_type: str
     visual_path: str
+    talking_visual_path: str
+    waiting_visual_path: str
     voice_name: str
     greeting: str
     tags: list[str]
@@ -64,7 +66,9 @@ CHARACTERS: dict[str, CharacterDefinition] = {
         ui_accent_color="#1f7a8c",
         avatar_label="も",
         visual_type="image",
-        visual_path="/static/assets/characters/momo_music.jpg",
+        visual_path="/static/assets/characters/character.jpg",
+        talking_visual_path="/static/assets/characters/talking.mp4",
+        waiting_visual_path="/static/assets/characters/waiting.mp4",
         voice_name="もも",
         greeting="うち、ももやで。今日はなに話す？",
         tags=["大阪弁", "ロボット", "女子高生", "元気", "親しみやすい"],

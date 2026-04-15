@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="app-shell">
+    <!-- 上部ステータス。LLM 接続状態とモデル名を固定表示する。 -->
     <header class="topbar">
       <div>
         <p class="eyebrow">DAY2 WEB APP</p>
@@ -19,8 +20,9 @@
       </div>
     </header>
 
-    <main class="layout">
-      <aside class="character-panel">
+    <main class="layout" id="layout-root">
+      <!-- 左カラム。キャラ設定と会話制御をまとめた常設パネル。 -->
+      <aside class="character-panel" id="character-panel">
         <div class="character-visual" id="character-visual">
           <span id="character-avatar-label">も</span>
         </div>
@@ -36,6 +38,15 @@
                 <input type="number" id="history-count-input" min="0" max="20" value="10" placeholder="0-20">
               </dd>
             </div>
+            <div>
+              <dt>音声ストリーミング</dt>
+              <dd>
+                <label class="toggle-field" for="audio-enabled-toggle">
+                  <input type="checkbox" id="audio-enabled-toggle">
+                  <span id="audio-enabled-label">TTS未接続</span>
+                </label>
+              </dd>
+            </div>
           </dl>
 
           <label class="field-label" for="role-text">キャラクタロール</label>
@@ -47,7 +58,12 @@
         </div>
       </aside>
 
-      <section class="chat-panel">
+      <!-- 右カラム。拡大メディア、会話ログ、送信フォームを積む。 -->
+      <section class="chat-panel" id="chat-panel">
+        <!-- 拡大表示時だけ使うステージ。ボタンは残し、中身だけ差し替える。 -->
+        <div id="chat-visual-stage" class="chat-visual-stage hidden" aria-live="polite">
+          <button id="chat-visual-close" class="chat-visual-close" type="button" aria-label="拡大表示を閉じる">×</button>
+        </div>
         <div id="chat-messages" class="chat-messages"></div>
         <div id="error-banner" class="error-banner hidden"></div>
         <form id="composer" class="composer">
