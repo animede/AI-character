@@ -1,0 +1,590 @@
+:root {
+  --bg: #f3efe7;
+  --panel: rgba(255, 250, 244, 0.88);
+  --panel-strong: rgba(255, 247, 238, 0.98);
+  --line: rgba(53, 44, 37, 0.12);
+  --text: #2f241f;
+  --muted: #6f6257;
+  --accent: #f26f63;
+  --accent-deep: #d7584d;
+  --accent-cool: #1f7a8c;
+  --user-bubble: #1f7a8c;
+  --assistant-bubble: #fff7ef;
+  --error: #a42b2b;
+  --shadow: 0 18px 50px rgba(59, 39, 23, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(242, 111, 99, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(31, 122, 140, 0.16), transparent 30%),
+    linear-gradient(145deg, #f7f2ea, #ece4d8);
+  font-family: "Hiragino Sans", "Yu Gothic", "BIZ UDPGothic", sans-serif;
+}
+
+.app-shell {
+  width: min(1200px, calc(100vw - 32px));
+  height: calc(100vh - 32px);
+  margin: 16px auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-credit {
+  margin-top: 12px;
+  padding: 10px 18px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.02em;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.topbar h1 {
+  margin: 4px 0 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--accent-cool);
+}
+
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-badge,
+.model-name {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.status-ok {
+  color: #185a2a;
+}
+
+.status-error {
+  color: var(--error);
+}
+
+.status-loading {
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 18px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* 拡大表示中は左カラムを畳み、右側だけで完結するレイアウトへ切り替える。 */
+.layout.visual-expanded {
+  grid-template-columns: 1fr;
+}
+
+.character-panel,
+.chat-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+  min-height: 0;
+}
+
+.character-panel {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.character-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.layout.visual-expanded .character-panel {
+  display: none;
+}
+
+.character-visual {
+  min-height: 220px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(160deg, rgba(242, 111, 99, 0.22), rgba(31, 122, 140, 0.18)),
+    #fff6ee;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.character-visual span {
+  font-size: 4rem;
+  font-weight: 800;
+}
+
+.character-visual img,
+.character-visual video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+#character-select,
+#tts-voice-select,
+#history-count-input,
+#role-text,
+#message-input,
+#send-button,
+.secondary-button {
+  font: inherit;
+}
+
+#character-select,
+#tts-voice-select,
+#history-count-input,
+#role-text,
+#message-input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  padding: 14px 16px;
+  color: var(--text);
+}
+
+#tts-voice-select {
+  margin-bottom: 10px;
+}
+
+.character-body h2 {
+  margin: 16px 0 8px;
+  font-size: 1.8rem;
+}
+
+.character-description {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.character-meta {
+  margin: 18px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.character-meta div {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+}
+
+.character-meta dt {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.character-meta dd {
+  margin: 4px 0 0;
+}
+
+.toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+
+.toggle-field input {
+  width: 18px;
+  height: 18px;
+}
+
+.tts-panel {
+  margin-top: 18px;
+}
+
+.tts-summary,
+.tts-inspector {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.tts-summary {
+  padding: 12px 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.tts-summary.is-muted {
+  color: var(--muted);
+}
+
+.tts-inspector {
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.tts-inspector summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  color: var(--accent-cool);
+}
+
+.tts-inspector summary::-webkit-details-marker {
+  display: none;
+}
+
+.tts-inspector-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.tts-section-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.tts-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.tts-list li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 250, 244, 0.82);
+  border: 1px solid rgba(53, 44, 37, 0.08);
+  line-height: 1.5;
+  font-size: 0.88rem;
+}
+
+.tts-list li.is-selected {
+  border-color: rgba(31, 122, 140, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(31, 122, 140, 0.18);
+}
+
+.tts-list strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.tts-list span {
+  display: block;
+  color: var(--muted);
+}
+
+#history-count-input {
+  max-width: 120px;
+}
+
+.panel-actions {
+  margin-top: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.secondary-button,
+#send-button {
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.secondary-button:hover,
+#send-button:hover {
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* 拡大メディアを会話ログの上に載せるときだけ、縦方向のグリッドに切り替える。 */
+.chat-panel.media-expanded {
+  display: grid;
+  grid-template-rows: minmax(220px, 46vh) minmax(0, 1fr) auto auto;
+  gap: 12px;
+}
+
+/* 右側の拡大メディア用ステージ。画像と動画のどちらでも同じ箱に収める。 */
+.chat-visual-stage {
+  display: none;
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(242, 111, 99, 0.16), rgba(31, 122, 140, 0.12)),
+    #fff6ee;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(53, 44, 37, 0.06);
+}
+
+.chat-visual-media {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* 拡大時のみステージを表示し、普段は DOM を残したまま隠す。 */
+.chat-panel.media-expanded .chat-visual-stage {
+  display: block;
+}
+
+.chat-visual-media img,
+.chat-visual-media video,
+.chat-visual-stage img,
+.chat-visual-stage video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chat-visual-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  border: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  padding: 0;
+  font: inherit;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(47, 36, 31, 0.72);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.chat-visual-close:hover {
+  background: rgba(47, 36, 31, 0.82);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-panel.media-expanded .chat-messages {
+  min-height: 0;
+  height: 100%;
+}
+
+.message-row {
+  display: flex;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-row.assistant {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: min(720px, 84%);
+  padding: 14px 16px;
+  border-radius: 22px;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  box-shadow: 0 8px 24px rgba(59, 39, 23, 0.08);
+}
+
+.message-row.user .message-bubble {
+  background: var(--user-bubble);
+  color: #fff;
+  border-bottom-right-radius: 8px;
+}
+
+.message-row.assistant .message-bubble {
+  background: var(--assistant-bubble);
+  border: 1px solid rgba(53, 44, 37, 0.08);
+  border-bottom-left-radius: 8px;
+}
+
+.message-bubble.pending::after {
+  content: "";
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1s infinite;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+#message-input {
+  resize: vertical;
+  min-height: 72px;
+  max-height: 180px;
+}
+
+#role-text {
+  resize: vertical;
+  min-height: 220px;
+  max-height: 320px;
+  line-height: 1.6;
+}
+
+#send-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff;
+  font-weight: 700;
+}
+
+#send-button:disabled,
+#message-input:disabled,
+.secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-banner {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(164, 43, 43, 0.08);
+  color: var(--error);
+  border: 1px solid rgba(164, 43, 43, 0.2);
+}
+
+.hidden {
+  display: none;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 920px) {
+  /* タブレット幅では縦積みにして、拡大時の動画高さも少し抑える。 */
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: calc(100vh - 16px);
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-panel {
+    min-height: 60vh;
+  }
+
+  .chat-panel.media-expanded {
+    grid-template-rows: minmax(180px, 38vh) minmax(0, 1fr) auto auto;
+  }
+}
+
+@media (max-width: 640px) {
+  /* スマホ幅では余白を縮め、送信欄を 1 カラムに落とす。 */
+  .app-shell {
+    width: min(100vw - 16px, 100%);
+    margin: 8px auto;
+    min-height: calc(100vh - 16px);
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .message-bubble {
+    max-width: 92%;
+  }
+}
