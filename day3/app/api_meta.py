@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from .character_registry import get_default_character, list_public_characters
+from .character_registry import get_default_character
 from .llm_client import llm_health_status
 from .settings import LLM_MODEL
 from .tts_client import TTSClient
@@ -25,12 +25,6 @@ def health() -> dict:
         "tts_available": tts_status["available"],
         "tts_status": tts_status,
     }
-
-
-@router.get("/characters")
-def characters() -> dict:
-    return {"characters": list_public_characters()}
-
 
 @router.get("/tts/voices")
 def tts_voices() -> dict:

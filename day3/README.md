@@ -49,11 +49,16 @@ Windows と Linux の両方で動かす前提で、Python 側のパス処理は 
 
 - `app/api_meta.py`
   - メタ情報 API を定義します。
-  - ヘルスチェックとキャラクター一覧取得を担当します。
+  - ヘルスチェックと TTS メタ情報取得を担当します。
+
+- `app/api_characters.py`
+  - キャラクター一覧と保存 API を定義します。
+  - キャラクタ登録名ごとの `character.json` 保存、role に書いた名前の LLM ローマ字変換による登録名自動補完、画像アップロード、削除を担当します。
+  - `data` 配下の画像・動画は API 経由で配信します。
 
 - `app/llm_client.py`
   - `llama.cpp` の OpenAI 互換 API へ接続するラッパです。
-  - メッセージ配列の構築、ストリーミング受信、ヘルス確認を担当します。
+  - 会話生成だけでなく、role に書かれた日本語名のローマ字変換にも使います。
 
 - `app/conversation_store.py`
   - 会話データをメモリ上で管理します。
@@ -61,7 +66,8 @@ Windows と Linux の両方で動かす前提で、Python 側のパス処理は 
 
 - `app/character_registry.py`
   - キャラクター定義を管理します。
-  - 現在は `もも` の設定を保持しています。
+  - `data/characters/<登録名>/character.json` を読み書きします。
+  - 画像・動画は `data/characters/<登録名>/assets/` に保存します。
   - `visual_type`、`visual_path`、`voice_name` もここで定義します。
 
 - `app/schemas.py`
@@ -91,8 +97,19 @@ Windows と Linux の両方で動かす前提で、Python 側のパス処理は 
 - `static/app.js`
   - フロントエンドの状態管理と API 通信を担当します。
   - WebSocket 応答の受信、描画キュー、音声再生キュー、会話表示更新を行います。
+  - 新規キャラ作成時は role に書いた名前を backend 側 LLM でローマ字変換し、登録名候補を自動生成します。
+  - 名前未記載時は警告を出します。
+  - キャラ削除操作もここで扱います。
 
 ### アセット
+
+- `data/characters/momo/character.json`
+  - ももの設定ファイルです。
+  - 他キャラも `data/characters/<登録名>/character.json` の形で追加されます。
+
+- `data/characters/<登録名>/assets/`
+  - `main.*`、`talking.*`、`waiting.*` の名前で画像・動画を保存します。
+  - ブラウザからは `/api/characters/<登録名>/assets/<種別>` で配信します。
 
 - `static/assets/characters/character.jpg`
   - もものキャラクター画像です。

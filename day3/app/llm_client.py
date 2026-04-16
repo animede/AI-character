@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import urllib.error
 import urllib.request
 
@@ -14,6 +15,13 @@ def create_async_client() -> AsyncOpenAI:
         api_key=LLM_API_KEY,
         timeout=OPENAI_TIMEOUT_SECONDS,
     )
+
+
+def sanitize_registration_name(value: str) -> str:
+    normalized = value.strip().lower()
+    normalized = re.sub(r"[^a-z0-9_-]+", "-", normalized)
+    normalized = re.sub(r"-+", "-", normalized).strip("-_")
+    return normalized
 
 
 def build_messages(system_prompt: str, messages: list[dict]) -> list[dict]:
@@ -65,6 +73,33 @@ async def summarize_assistant_response(response_text: str, *, max_chars: int = A
     if len(summary) <= max_chars:
         return summary
     return summary[:max_chars].rstrip()
+
+
+async def romanize_japanese_name(name_text: str) -> str:
+    client = create_async_client()
+    completion = await client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "あなたは日本語の名前を、ファイル名に使えるローマ字スラッグへ変換する補助役です。"
+                    "出力は lowercase の英数字と hyphen のみ。"
+                    "説明は禁止。結果だけを 1 行で返してください。"
+                    "例: もも -> momo, 桜ミク -> sakura-miku"
+                ),
+            },
+            {
+                "role": "user",
+                "content": name_text,
+            },
+        ],
+        max_tokens=40,
+        temperature=0,
+        stream=False,
+    )
+    result = (completion.choices[0].message.content or "").strip().splitlines()[0]
+    return sanitize_registration_name(result)
 
 
 def llm_health_status() -> str:

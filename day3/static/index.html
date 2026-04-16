@@ -29,8 +29,55 @@
         <div class="character-body">
           <label class="field-label" for="character-select">キャラクター</label>
           <select id="character-select"></select>
+          <div class="character-editor-toolbar">
+            <button id="create-character-button" class="secondary-button" type="button">新規登録</button>
+            <button id="asset-editor-toggle-button" class="secondary-button" type="button">素材登録</button>
+            <button id="delete-character-button" class="danger-button" type="button">このキャラを削除</button>
+          </div>
           <h2 id="character-name">-</h2>
           <p id="character-description" class="character-description"></p>
+          <div class="editor-grid">
+            <div>
+              <label class="field-label" for="character-id-input">キャラクタ登録名</label>
+              <input id="character-id-input" type="text" placeholder="momo" pattern="[a-z0-9][a-z0-9_-]*" spellcheck="false">
+              <p class="field-note">作成モードでは role に書いた名前を LLM でローマ字化して候補を入れます。保存ファイル名にも使うので、英小文字、数字、-、_ で保存されます。</p>
+            </div>
+            <div>
+              <label class="field-label" for="character-display-name-input">表示名</label>
+              <input id="character-display-name-input" type="text" placeholder="もも">
+            </div>
+            <div>
+              <label class="field-label" for="character-name-input">内部名</label>
+              <input id="character-name-input" type="text" placeholder="もも">
+            </div>
+            <div>
+              <label class="field-label" for="character-voice-name-input">TTS表示名</label>
+              <input id="character-voice-name-input" type="text" placeholder="もも">
+            </div>
+            <div>
+              <label class="field-label" for="character-theme-color-input">テーマ色</label>
+              <input id="character-theme-color-input" type="color" value="#f26f63">
+            </div>
+            <div>
+              <label class="field-label" for="character-accent-color-input">アクセント色</label>
+              <input id="character-accent-color-input" type="color" value="#1f7a8c">
+            </div>
+          </div>
+
+          <label class="field-label" for="character-description-input">説明</label>
+          <textarea id="character-description-input" rows="3" placeholder="キャラクターの短い説明"></textarea>
+
+          <label class="field-label" for="character-greeting-input">初回あいさつ</label>
+          <textarea id="character-greeting-input" rows="2" placeholder="こんにちは、今日は何を話す？"></textarea>
+
+          <label class="field-label" for="character-tags-input">タグ</label>
+          <input id="character-tags-input" type="text" placeholder="大阪弁, ロボット, 元気">
+
+          <label class="checkbox-field" for="character-default-input">
+            <input id="character-default-input" type="checkbox">
+            <span>既定キャラにする</span>
+          </label>
+
           <dl class="character-meta">
             <div>
               <dt>会話ターン記憶数</dt>
@@ -72,8 +119,30 @@
 
           <label class="field-label" for="role-text">キャラクタロール</label>
           <textarea id="role-text" rows="12" placeholder="キャラクター設定や口調を入力"></textarea>
+
+          <details id="asset-editor" class="asset-editor">
+            <summary class="asset-editor-summary hidden">素材登録</summary>
+            <div>
+              <label class="field-label" for="visual-type-select">メイン表示タイプ</label>
+              <select id="visual-type-select">
+                <option value="image">image</option>
+                <option value="video">video</option>
+                <option value="none">none</option>
+              </select>
+            </div>
+            <p class="asset-editor-note">メイン・会話・待機の登録先を選んでから、左上のキャラクター表示へドロップして登録します。必要な hidden 値は内部で保持されます。</p>
+            <div class="asset-upload-inputs-hidden" aria-hidden="true">
+              <input id="visual-path-input" type="hidden">
+              <input id="visual-upload-input" class="asset-upload-input-hidden" type="file" accept="image/*,video/*" tabindex="-1">
+              <input id="talking-visual-path-input" type="hidden">
+              <input id="talking-upload-input" class="asset-upload-input-hidden" type="file" accept="video/*,image/*" tabindex="-1">
+              <input id="waiting-visual-path-input" type="hidden">
+              <input id="waiting-upload-input" class="asset-upload-input-hidden" type="file" accept="video/*,image/*" tabindex="-1">
+            </div>
+          </details>
         </div>
         <div class="panel-actions">
+          <button id="save-character-button" class="secondary-button" type="button">キャラ設定を保存</button>
           <button id="new-conversation-button" class="secondary-button" type="button">新しい会話</button>
           <button id="clear-conversation-button" class="secondary-button" type="button">履歴クリア</button>
         </div>
