@@ -1,6 +1,8 @@
 # day1_5 LINE風チャットアプリ
 
-この記事の構成をベースにした、FastAPI + WebSocket + 単一 HTML のシンプルな LINE 風チャットアプリです。
+以下の記事を参照して構成した、FastAPI + WebSocket + 単一 HTML のシンプルな LINE 風チャットアプリです。
+
+- 参照記事: [連載:AIキャラの作り方ー（Ｄay-1.5）](https://note.com/ai_meg/n/n521427b622d2)
 
 day1_5 は、day1 の role / 履歴付き対話ロジックをブラウザ GUI に載せ替えたアプリです。
 位置づけとしては、day1 から day2 へ進むための橋渡し的な段階にあります。
