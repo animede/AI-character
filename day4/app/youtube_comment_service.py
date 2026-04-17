@@ -87,7 +87,7 @@ class YouTubeCommentSession:
             comments = comments[:limit]
         next_seq = comments[-1]["seq"] if comments else since_seq
         return {
-            "running": self.running and self._thread.is_alive(),
+            "running": self.running,
             "video_id": self.video_id,
             "comments": comments,
             "next_seq": next_seq,
@@ -129,7 +129,7 @@ class YouTubeCommentSession:
         while not self._stop_event.is_set():
             livechat = None
             try:
-                livechat = pytchat.create(video_id=self.video_id)
+                livechat = pytchat.create(video_id=self.video_id, interruptable=False)
                 self.last_error = None
                 while livechat.is_alive() and not self._stop_event.is_set():
                     chat_data = livechat.get()

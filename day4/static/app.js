@@ -1501,12 +1501,16 @@ async function startYouTubeComments() {
       }),
     });
     const data = await parseResponseJson(response);
-    state.youtubeRunning = Boolean(data.running);
+    state.youtubeRunning = true;
     state.youtubeConversationId = state.currentConversationId;
     state.youtubePollCursor = 0;
     state.youtubePendingComments = [];
     state.youtubeLastCommentKey = "";
-    setYouTubeStatus(`YouTube コメント取得中: ${data.video_id}`);
+    if (data.error) {
+      setYouTubeStatus(`YouTube コメント取得エラー: ${data.error}`);
+    } else {
+      setYouTubeStatus(`YouTube コメント取得を開始中: ${data.video_id}`);
+    }
     startYouTubePolling();
     await pollYouTubeComments();
   } catch (error) {
