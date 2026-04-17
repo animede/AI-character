@@ -1,0 +1,355 @@
+# day4 AIキャラ会話Webアプリ
+
+開発中
+
+## 概要
+
+`day4` は、`day3` をベースに待機中キャラクターの口パク導入を試すための作業用ディレクトリです。
+FastAPI をバックエンドに使い、フロントエンドはシンプルな静的 HTML/CSS/JavaScript で構成しています。
+Windows と Linux の両方で動かす前提で、Python 側のパス処理は `pathlib.Path`、画像指定はブラウザ向け URL パスで扱う構成にしています。
+
+主な特徴は次のとおりです。
+
+- 軽量な会話管理
+- キャラクター定義の分離
+- WebSocket によるストリーミング応答
+- 文字単位に近い逐次表示
+- 文区切りごとの音声ストリーミング
+- キャラクター画像・動画の表示
+- `day4` では waiting 動画ベースの口パク試行を実装
+- `day4` では YouTube Live コメント取得を `pytchat` ベースで試せます
+
+現時点では、`day3` の動作を引き継ぎつつ、待機動画に対する口パクの試作を `day4` 側で独立して検証できる構成にしています。
+
+## 参考資料
+
+`day2` の実装背景として、次の記事を参考にしています。
+
+- [連載:AIキャラの作り方ー（Ｄay-2）](https://note.com/ai_meg/n/n2aeaa96e0245)
+
+## day3 からの位置づけ
+
+`day4` は、`day3` を置き換えるためではなく、`day3` を残したまま次の改良を試すための作業ディレクトリです。
+
+現時点での主な違いは次のとおりです。
+
+- `day3` の構成をそのまま引き継いでいます
+- 起動入口は `webapp_main.py` のまま残し、アプリ本体は `app/` から import する形です
+- `static/` は `day3` と同じ構成を維持しつつ、waiting 動画限定の口パク試行を追加していく前提です
+- 既定ポートを `8005` に変更し、`day3` の `8001` と分離しています
+
+## ディレクトリ構成
+
+### バックエンド
+
+- `webapp_main.py`
+  - FastAPI アプリの起動入口です。
+  - `app/` 配下の API ルータを登録し、`static` ディレクトリを配信します。
+
+- `app/api_chat.py`
+  - 会話関連 API を定義します。
+  - 会話作成、会話取得、会話クリア、WebSocket 会話を担当します。
+
+- `app/api_meta.py`
+  - メタ情報 API を定義します。
+  - ヘルスチェックと TTS メタ情報取得を担当します。
+
+- `app/api_characters.py`
+  - キャラクター一覧と保存 API を定義します。
+  - キャラクタ登録名ごとの `character.json` 保存、role に書いた名前の LLM ローマ字変換による登録名自動補完、画像アップロード、削除を担当します。
+  - `data` 配下の画像・動画は API 経由で配信します。
+  - `day4` では waiting lipsync 用の manifest、mouth sprite、mouthless 動画も配信します。
+
+- `app/llm_client.py`
+  - `llama.cpp` の OpenAI 互換 API へ接続するラッパです。
+  - 会話生成だけでなく、role に書かれた日本語名のローマ字変換にも使います。
+
+- `app/conversation_store.py`
+  - 会話データをメモリ上で管理します。
+  - 会話の作成、取得、メッセージ追加、履歴保持を担当します。
+
+- `app/character_registry.py`
+  - キャラクター定義を管理します。
+  - `data/characters/<登録名>/character.json` を読み書きします。
+  - 画像・動画は `data/characters/<登録名>/assets/` に保存します。
+
+- `app/schemas.py`
+  - API 入出力で使う Pydantic モデルを定義します。
+
+- `app/settings.py`
+  - 接続先 URL、モデル名、履歴件数、ポートなどの設定を管理します。
+  - `day4` の既定待受ポートは `8005` です。
+
+- `app/api_youtube.py`
+  - YouTube Live コメント取得の開始、停止、新着取得 API を定義します。
+  - `pytchat` を使い、会話 ID ごとに取得セッションを管理します。
+
+- `app/youtube_comment_service.py`
+  - `pytchat` による Live コメント取得処理を担当します。
+  - 会話単位でコメント取得スレッドを管理し、新着コメントだけをフロントへ返します。
+
+- `app/stream_segmenter.py`
+  - LLM の `delta` を文区切り単位にまとめます。
+  - TTS に渡す短いセグメントを切り出します。
+
+- `app/tts_client.py`
+  - Aivis / VOICEVOX 互換 TTS API を呼び出します。
+  - `audio_query` と `synthesis` を使って WAV を生成します。
+
+### フロントエンド
+
+- `static/index.html`
+  - Web UI の本体です。
+  - キャラクター表示、会話エリア、入力欄を定義します。
+
+- `static/style.css`
+  - UI の見た目とレイアウトを定義します。
+  - 会話エリアの内部スクロールもここで制御しています。
+
+- `static/app.js`
+  - フロントエンドの状態管理と API 通信を担当します。
+  - WebSocket 応答の受信、描画キュー、音声再生キュー、会話表示更新を行います。
+  - waiting lipsync があるキャラでは、音声再生中も waiting 動画を維持しつつ mouth sprite を重ねます。
+  - YouTube コメント取得が有効なときは、新着コメントを定期取得し、既存の user 入力として会話へ流し込みます。
+
+### アセット
+
+- `data/characters/momo/character.json`
+  - ももの設定ファイルです。
+  - 他キャラも `data/characters/<登録名>/character.json` の形で追加されます。
+
+- `data/characters/<登録名>/assets/`
+  - `main.*`、`talking.*`、`waiting.*` の名前で画像・動画を保存します。
+  - ブラウザからは `/api/characters/<登録名>/assets/<種別>` で配信します。
+
+- `data/characters/<登録名>/mouth_track.json`, `mouth/`, `*_waiting_loop_mouthless_h264.mp4`
+  - waiting lipsync 用の追加素材です。
+  - ブラウザからは `/api/characters/<登録名>/lipsync/*` 経由で参照します。
+
+## パスの扱い
+
+- `visual_path` には、OS の実ファイルパスではなく、ブラウザから参照する URL パスを設定します
+- 例: `/static/assets/characters/character.jpg`
+- `C:\\images\\momo.jpg` や `/home/user/image.jpg` のようなローカルファイルパスは設定しません
+- サーバ内部のファイル参照は `pathlib.Path` を使っているため、Windows と Linux の両方で扱えます
+
+## ストリーミング仕様
+
+会話の送受信は WebSocket で行います。
+フロントエンドは `/ws` に接続し、`action: "chat"` を送信すると次のイベントを受信します。
+
+- `start`
+  - 応答開始通知
+- `delta`
+  - 追記文字列
+- `audio`
+  - 文区切りで生成された音声セグメント
+- `end`
+  - 応答完了通知
+- `error`
+  - エラー通知
+
+`day4` でも基本仕様は `day3` と同じですが、waiting lipsync 素材があるキャラでは `talking` 動画へ切り替えず、音声イベントを基準に waiting 動画上で口パクを重ねます。
+
+## YouTube コメント連携
+
+`day4` では、YouTube Live のコメントを `pytchat` で取得し、既存の user 入力として会話へ流し込めます。
+
+- UI の「YouTube コメント」を ON にする
+- 配信 URL または `videoId` を入力する
+- 「取得開始」を押す
+- 「新着コメントを自動送信する」が ON の場合、受信したコメントを順番に会話へ投入する
+
+この機能は Google API キーを使わず、`pytchat` だけで動かします。
+そのため、入力欄は API キーではなく配信 URL / `videoId` を受け取る形にしています。
+
+## 環境導入
+
+Day4 を動かすには、少なくとも次の 3 つが必要です。
+
+- Python 3.10 以上
+- `llama.cpp` の OpenAI 互換 API サーバ
+- Aivis / VOICEVOX 互換 TTS を使う場合は AivisSpeech Engine
+
+Python 環境は、リポジトリルートで仮想環境を作ってから `day4/requirements.txt` を入れる形にしています。
+
+Linux / macOS:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r day4/requirements.txt
+```
+
+Windows PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r day4/requirements.txt
+```
+
+## llama.cpp サーバの起動
+
+Day4 は既定で `http://127.0.0.1:8080/v1` の OpenAI 互換 API を参照します。先に別ターミナルで `llama-server` を起動しておきます。
+
+```bash
+llama-server -hf unsloth/gemma-4-E4B-it-GGUF:Q4_K_M --reasoning off --host 0.0.0.0 --port 8080
+```
+
+起動確認:
+
+```bash
+curl -s http://127.0.0.1:8080/v1/models
+```
+
+## AivisSpeech Engine の起動
+
+音声ストリーミングを使う場合は、AivisSpeech Engine を別ターミナルで起動しておきます。Day4 の既定接続先は `http://127.0.0.1:10101` です。
+
+起動確認:
+
+```bash
+curl -s http://127.0.0.1:10101/version
+```
+
+## Web アプリの起動
+
+既定の待受ポートは `8005` です。
+`day3` と同じポートで起動したい場合は、環境変数 `APP_PORT=8001` を付けて起動します。
+
+Linux / macOS:
+
+```bash
+cd day4
+python webapp_main.py
+```
+
+`8001` で起動する場合:
+
+```bash
+cd day4
+APP_PORT=8001 python webapp_main.py
+```
+
+Windows PowerShell:
+
+```powershell
+cd day4
+python webapp_main.py
+```
+
+`8001` で起動する場合:
+
+```powershell
+cd day4
+$env:APP_PORT = "8001"
+python webapp_main.py
+```
+
+Windows コマンドプロンプト:
+
+```bat
+cd day4
+python webapp_main.py
+```
+
+`8001` で起動する場合:
+
+```bat
+cd day4
+set APP_PORT=8001
+python webapp_main.py
+```
+
+仮想環境を有効化せずに直接実行したい場合は、`day4` ディレクトリで次を使います。
+
+Linux / macOS:
+
+```bash
+../.venv/bin/python webapp_main.py
+```
+
+`8001` で起動する場合:
+
+```bash
+APP_PORT=8001 ../.venv/bin/python webapp_main.py
+```
+
+Windows PowerShell / コマンドプロンプト:
+
+```bat
+..\.venv\Scripts\python.exe webapp_main.py
+```
+
+`8001` で起動する場合:
+
+```bat
+set APP_PORT=8001
+..\.venv\Scripts\python.exe webapp_main.py
+```
+
+起動後、ブラウザで次を開きます。
+
+```text
+http://127.0.0.1:8005
+```
+
+`8001` で起動した場合は次を開きます。
+
+```text
+http://127.0.0.1:8001
+```
+
+現在このリポジトリでよく使う起動例は次のとおりです。
+
+- LLM サーバ: `http://127.0.0.1:8080/v1`
+- Web アプリ: `http://127.0.0.1:8005`
+- TTS サーバ: `http://127.0.0.1:10101`
+
+Linux / macOS で、リポジトリルートから直接起動する例:
+
+```bash
+cd day4
+TTS_ENABLED=true APP_PORT=8005 ../.venv/bin/python webapp_main.py
+```
+
+Windows PowerShell で TTS を有効にして起動する例:
+
+```powershell
+cd day4
+$env:TTS_ENABLED = "true"
+$env:APP_PORT = "8005"
+python webapp_main.py
+```
+
+起動確認:
+
+```bash
+curl -s http://127.0.0.1:8005/api/health
+```
+
+## 操作方法
+
+基本的な使い方は `day3` と同じです。
+
+1. ブラウザで `http://127.0.0.1:8005` を開きます。
+2. 左側の「キャラクター」で会話相手を選びます。
+3. 必要なら「キャラクタロール」を編集して、口調や設定を調整します。
+4. 入力欄にメッセージを入れて「送信」します。
+
+送信後の画面挙動:
+
+- assistant の返答は WebSocket でストリーミング表示されます
+- 音声ストリーミングが ON のときは、文区切りごとに順番再生されます
+- 現時点では `day3` と同じく `talking.mp4` / `waiting.mp4` を切り替えます
+- `day4` では waiting 動画限定の口パク試作をここへ追加していく予定です
+
+## 補足
+
+- 会話履歴はメモリ保持のみです
+- サーバ再起動で履歴は消えます
+- 認証や永続化はまだ入れていません
+- `day4` は waiting 動画ベースの口パク試作ブランチとして扱います
