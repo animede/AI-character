@@ -40,6 +40,8 @@ class ChatStreamRequest(BaseModel):
     message: str = Field(min_length=1)
     role: str | None = Field(default=None, min_length=1)
     max_history: int | None = Field(default=None, ge=0, le=20)
+    summary_threshold_chars: int | None = Field(default=None, ge=0, le=4000)
+    summary_max_chars: int | None = Field(default=None, ge=1, le=2000)
     audio_enabled: bool
     selected_style_id: int | None = None
 

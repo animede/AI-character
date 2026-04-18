@@ -14,6 +14,11 @@ const state = {
   messages: [],
   serverStatus: "loading",
   modelName: "-",
+  summaryThresholdChars: 150,
+  summaryMaxChars: 100,
+  pendingFirstTokenStartedAt: 0,
+  firstTokenLatencyMs: null,
+  firstTokenMeasuredForTurn: false,
   isStreaming: false,
   currentAssistantMessageId: null,
   renderQueue: [],
@@ -70,6 +75,8 @@ const elements = {
   characterName: document.getElementById("character-name"),
   characterDescription: document.getElementById("character-description"),
   historyCountInput: document.getElementById("history-count-input"),
+  summaryThresholdInput: document.getElementById("summary-threshold-input"),
+  summaryMaxCharsInput: document.getElementById("summary-max-chars-input"),
   audioEnabledToggle: document.getElementById("audio-enabled-toggle"),
   audioEnabledLabel: document.getElementById("audio-enabled-label"),
   lipsyncToggleRow: document.getElementById("lipsync-toggle-row"),
@@ -87,6 +94,7 @@ const elements = {
   ttsVoiceList: document.getElementById("tts-voice-list"),
   ttsModelList: document.getElementById("tts-model-list"),
   footerTtsVoice: document.getElementById("footer-tts-voice"),
+  footerFirstTokenLatency: document.getElementById("footer-first-token-latency"),
   roleText: document.getElementById("role-text"),
   chatMessages: document.getElementById("chat-messages"),
   errorBanner: document.getElementById("error-banner"),
@@ -308,6 +316,32 @@ function bindEvents() {
   elements.clearConversationButton.addEventListener("click", async () => {
     resetAudioPlayback();
     await clearConversation();
+  });
+
+  elements.summaryThresholdInput?.addEventListener("input", () => {
+    const value = elements.summaryThresholdInput.value.trim();
+    if (!value) {
+      return;
+    }
+    state.summaryThresholdChars = parseSummaryThresholdChars();
+  });
+
+  elements.summaryThresholdInput?.addEventListener("change", () => {
+    state.summaryThresholdChars = parseSummaryThresholdChars();
+    syncSummaryControls();
+  });
+
+  elements.summaryMaxCharsInput?.addEventListener("input", () => {
+    const value = elements.summaryMaxCharsInput.value.trim();
+    if (!value) {
+      return;
+    }
+    state.summaryMaxChars = parseSummaryMaxChars();
+  });
+
+  elements.summaryMaxCharsInput?.addEventListener("change", () => {
+    state.summaryMaxChars = parseSummaryMaxChars();
+    syncSummaryControls();
   });
 
   elements.roleText.addEventListener("input", () => {
@@ -1337,8 +1371,11 @@ async function refreshHealth() {
     const data = await response.json();
     state.serverStatus = data.llm_status === "ok" ? "ok" : "error";
     state.modelName = data.model || "-";
+    state.summaryThresholdChars = Number(data.summary_threshold_chars || state.summaryThresholdChars);
+    state.summaryMaxChars = Number(data.summary_max_chars || state.summaryMaxChars);
     state.ttsAvailable = Boolean(data.tts_available);
     state.ttsStatus = data.tts_status || null;
+    syncSummaryControls();
     syncTtsAvailability();
     if (!state.currentCharacterId) {
       state.currentCharacterId = data.default_character_id;
@@ -1348,6 +1385,31 @@ async function refreshHealth() {
     state.serverStatus = "error";
     updateServerStatus();
     showError("バックエンドまたはLLMサーバに接続できません。");
+  }
+}
+
+function parseSummaryThresholdChars() {
+  const rawValue = Number(elements.summaryThresholdInput?.value ?? state.summaryThresholdChars);
+  if (!Number.isFinite(rawValue)) {
+    return state.summaryThresholdChars;
+  }
+  return Math.max(0, Math.min(4000, Math.round(rawValue)));
+}
+
+function parseSummaryMaxChars() {
+  const rawValue = Number(elements.summaryMaxCharsInput?.value ?? state.summaryMaxChars);
+  if (!Number.isFinite(rawValue)) {
+    return state.summaryMaxChars;
+  }
+  return Math.max(1, Math.min(2000, Math.round(rawValue)));
+}
+
+function syncSummaryControls() {
+  if (elements.summaryThresholdInput) {
+    elements.summaryThresholdInput.value = String(state.summaryThresholdChars);
+  }
+  if (elements.summaryMaxCharsInput) {
+    elements.summaryMaxCharsInput.value = String(state.summaryMaxChars);
   }
 }
 
@@ -2065,6 +2127,10 @@ async function sendChatMessageText(message) {
   state.textStreamEnded = false;
   state.turnEnded = false;
   state.currentAssistantMessageId = null;
+  state.pendingFirstTokenStartedAt = performance.now();
+  state.firstTokenLatencyMs = null;
+  state.firstTokenMeasuredForTurn = false;
+  renderFirstTokenLatency();
   syncCharacterVisualMode();
   setComposerDisabled(true);
 
@@ -2091,6 +2157,8 @@ async function sendChatMessageText(message) {
         message,
         role: roleText,
         max_history: historyCount,
+        summary_threshold_chars: parseSummaryThresholdChars(),
+        summary_max_chars: parseSummaryMaxChars(),
         audio_enabled: audioEnabled,
         selected_style_id: state.selectedTtsStyleId,
       })
@@ -2129,6 +2197,11 @@ function handleSocketEvent(event) {
   }
 
   if (event.type === "delta") {
+    if (!state.firstTokenMeasuredForTurn && state.pendingFirstTokenStartedAt > 0) {
+      state.firstTokenMeasuredForTurn = true;
+      state.firstTokenLatencyMs = Math.round(performance.now() - state.pendingFirstTokenStartedAt);
+      renderFirstTokenLatency();
+    }
     // 受信したテキストは即描画せずキューへ積み、一定テンポで流す。
     state.renderQueue.push(...Array.from(event.delta));
     if (!state.renderLoopRunning) {
@@ -2325,9 +2398,28 @@ function finalizeStreamingError() {
   state.turnEnded = false;
   state.currentAssistantMessageId = null;
   state.renderLoopRunning = false;
+  state.pendingFirstTokenStartedAt = 0;
   syncCharacterVisualMode();
   setComposerDisabled(false);
   void drainYouTubePendingComments();
+}
+
+function renderFirstTokenLatency() {
+  if (!elements.footerFirstTokenLatency) {
+    return;
+  }
+
+  if (state.isStreaming && !state.firstTokenMeasuredForTurn) {
+    elements.footerFirstTokenLatency.textContent = "計測中";
+    return;
+  }
+
+  if (typeof state.firstTokenLatencyMs === "number") {
+    elements.footerFirstTokenLatency.textContent = `${state.firstTokenLatencyMs} ms`;
+    return;
+  }
+
+  elements.footerFirstTokenLatency.textContent = "-";
 }
 
 function setComposerDisabled(disabled) {

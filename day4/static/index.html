@@ -54,6 +54,13 @@
               <label class="field-label" for="character-voice-name-input">TTS表示名</label>
               <input id="character-voice-name-input" type="text" placeholder="もも">
             </div>
+            <div class="editor-grid-full">
+              <label class="field-label" for="audio-enabled-toggle">音声ストリーミング</label>
+              <label class="toggle-field" for="audio-enabled-toggle">
+                <input type="checkbox" id="audio-enabled-toggle">
+                <span id="audio-enabled-label">TTS未接続</span>
+              </label>
+            </div>
             <div>
               <label class="field-label" for="character-theme-color-input">テーマ色</label>
               <input id="character-theme-color-input" type="color" value="#f26f63">
@@ -86,12 +93,15 @@
               </dd>
             </div>
             <div>
-              <dt>音声ストリーミング</dt>
+              <dt>要約開始文字数</dt>
               <dd>
-                <label class="toggle-field" for="audio-enabled-toggle">
-                  <input type="checkbox" id="audio-enabled-toggle">
-                  <span id="audio-enabled-label">TTS未接続</span>
-                </label>
+                <input type="number" id="summary-threshold-input" min="0" max="4000" value="150" placeholder="0-4000">
+              </dd>
+            </div>
+            <div>
+              <dt>要約文字数</dt>
+              <dd>
+                <input type="number" id="summary-max-chars-input" min="1" max="2000" value="100" placeholder="1-2000">
               </dd>
             </div>
             <div id="lipsync-toggle-row" class="hidden">
@@ -104,6 +114,7 @@
               </dd>
             </div>
           </dl>
+          <p class="field-note">要約開始文字数を 0 にすると、履歴用の要約を無効にできます。</p>
 
           <section class="integration-panel">
             <div class="integration-panel-header">
@@ -195,6 +206,7 @@
 
     <footer class="page-credit">
       <span>AIVIS CV: <span id="footer-tts-voice">確認中</span></span>
+      <span>初回文字: <span id="footer-first-token-latency">-</span></span>
       <span>© ゆずき</span>
     </footer>
   </div>

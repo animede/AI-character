@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
+import time
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -91,8 +93,57 @@ def rollback_user_message(conversation_id: str, user_message_id: str) -> None:
     )
 
 
-def should_summarize_assistant_response(response_text: str) -> bool:
-    return len(response_text) >= ASSISTANT_SUMMARY_THRESHOLD_CHARS
+def should_summarize_assistant_response(response_text: str, threshold_chars: int) -> bool:
+    if threshold_chars <= 0:
+        return False
+    return len(response_text) >= threshold_chars
+
+
+def resolve_summary_settings(payload: ChatStreamRequest) -> tuple[int, int]:
+    threshold_chars = payload.summary_threshold_chars
+    max_chars = payload.summary_max_chars
+    resolved_threshold = threshold_chars if threshold_chars is not None else ASSISTANT_SUMMARY_THRESHOLD_CHARS
+    resolved_max = max_chars if max_chars is not None else ASSISTANT_SUMMARY_MAX_CHARS
+    return resolved_threshold, resolved_max
+
+
+def log_history_summary(
+    *,
+    conversation_id: str,
+    message_id: str,
+    threshold_chars: int,
+    max_chars: int,
+    summary: str,
+) -> None:
+    print(
+        json.dumps(
+            {
+                "type": "assistant_history_summary",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "summary_threshold_chars": threshold_chars,
+                "summary_max_chars": max_chars,
+                "summary": summary,
+            },
+            ensure_ascii=False,
+        ),
+        flush=True,
+    )
+
+
+def log_llm_first_chunk_timing(*, conversation_id: str, message_id: str, elapsed_ms: float) -> None:
+    print(
+        json.dumps(
+            {
+                "type": "llm_first_chunk_timing",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "elapsed_ms": round(elapsed_ms, 1),
+            },
+            ensure_ascii=False,
+        ),
+        flush=True,
+    )
 
 
 async def send_audio_segment(
@@ -168,14 +219,16 @@ async def maybe_summarize_turn(
     conversation_id: str,
     assistant_message_id: str,
     response_text: str,
+    summary_threshold_chars: int,
+    summary_max_chars: int,
     websocket: WebSocket,
     send_lock: asyncio.Lock,
 ) -> None:
-    if not should_summarize_assistant_response(response_text):
+    if not should_summarize_assistant_response(response_text, summary_threshold_chars):
         return
 
     try:
-        summary = await summarize_assistant_response(response_text, max_chars=ASSISTANT_SUMMARY_MAX_CHARS)
+        summary = await summarize_assistant_response(response_text, max_chars=summary_max_chars)
     except Exception as exc:
         await send_stream_error(
             websocket,
@@ -194,6 +247,13 @@ async def maybe_summarize_turn(
         conversation_id,
         assistant_message_id,
         summary,
+    )
+    log_history_summary(
+        conversation_id=conversation_id,
+        message_id=assistant_message_id,
+        threshold_chars=summary_threshold_chars,
+        max_chars=summary_max_chars,
+        summary=summary,
     )
 
 
@@ -214,6 +274,7 @@ async def handle_chat_turn(
     max_history_pairs = payload.max_history if payload.max_history is not None else MAX_HISTORY_PAIRS
     # audio_enabled の最終判定は helper に寄せ、TTS 利用条件を 1 箇所に固定する。
     audio_enabled = resolve_audio_enabled(payload)
+    summary_threshold_chars, summary_max_chars = resolve_summary_settings(payload)
     selected_style_id = payload.selected_style_id
     segmenter = SentenceSegmenter()
     segment_index = 0
@@ -221,6 +282,8 @@ async def handle_chat_turn(
     tts_queue: asyncio.Queue[tuple[int, str] | None] | None = None
     tts_task: asyncio.Task | None = None
     summary_task: asyncio.Task | None = None
+    llm_request_started_at = time.perf_counter()
+    first_chunk_logged = False
 
     try:
         recent_messages = conversation_store.recent_messages_for_prompt(
@@ -254,6 +317,13 @@ async def handle_chat_turn(
             send_lock=send_lock,
         )
         async for chunk in stream_chat_chunks(llm_messages):
+            if not first_chunk_logged:
+                first_chunk_logged = True
+                log_llm_first_chunk_timing(
+                    conversation_id=payload.conversation_id,
+                    message_id=assistant_message_id,
+                    elapsed_ms=(time.perf_counter() - llm_request_started_at) * 1000,
+                )
             full_response += chunk
             # 文字ストリームは常に先に返し、音声化はその後段で追従させる。
             await send_stream_payload(
@@ -296,6 +366,8 @@ async def handle_chat_turn(
                     conversation_id=payload.conversation_id,
                     assistant_message_id=assistant_message_id,
                     response_text=full_response,
+                    summary_threshold_chars=summary_threshold_chars,
+                    summary_max_chars=summary_max_chars,
                     websocket=websocket,
                     send_lock=send_lock,
                 )

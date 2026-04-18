@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from .character_registry import get_default_character
 from .llm_client import llm_health_status
-from .settings import LLM_MODEL
+from .settings import ASSISTANT_SUMMARY_MAX_CHARS, ASSISTANT_SUMMARY_THRESHOLD_CHARS, LLM_MODEL
 from .tts_client import TTSClient
 
 
@@ -21,6 +21,8 @@ def health() -> dict:
         "status": "ok",
         "llm_status": llm_status,
         "model": LLM_MODEL,
+        "summary_threshold_chars": ASSISTANT_SUMMARY_THRESHOLD_CHARS,
+        "summary_max_chars": ASSISTANT_SUMMARY_MAX_CHARS,
         "default_character_id": default_character.id,
         "tts_available": tts_status["available"],
         "tts_status": tts_status,

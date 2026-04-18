@@ -298,6 +298,8 @@ body {
 #visual-type-select,
 #tts-voice-select,
 #history-count-input,
+#summary-threshold-input,
+#summary-max-chars-input,
 #character-id-input,
 #character-display-name-input,
 #character-name-input,
@@ -320,6 +322,8 @@ body {
 #visual-type-select,
 #tts-voice-select,
 #history-count-input,
+#summary-threshold-input,
+#summary-max-chars-input,
 #character-id-input,
 #character-display-name-input,
 #character-name-input,
@@ -357,6 +361,10 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.editor-grid-full {
+  grid-column: 1 / -1;
 }
 
 .checkbox-field {
@@ -575,7 +583,9 @@ body {
   color: var(--muted);
 }
 
-#history-count-input {
+#history-count-input,
+#summary-threshold-input,
+#summary-max-chars-input {
   max-width: 120px;
 }
 
